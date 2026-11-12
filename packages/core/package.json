@@ -1,0 +1,32 @@
+{
+  "name": "@bjj/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./db": "./src/db.ts",
+    "./status": "./src/status.ts",
+    "./url": "./src/url.ts",
+    "./storage": "./src/storage.ts",
+    "./techniques": "./src/techniques.ts",
+    "./classifier": "./src/classifier.ts",
+    "./format": "./src/format.ts"
+  },
+  "scripts": {
+    "migrate": "tsx src/migrate.ts",
+    "test": "node --import tsx --test src/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.9.0",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.15.5",
+    "dotenv": "^17.2.3",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

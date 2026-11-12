@@ -1,0 +1,16 @@
+# Executa o bjj-media-worker em container (servidor/VPS ou local).
+#   docker compose -f docker-compose.worker.yml up -d --build
+# Variáveis lidas de apps/worker/.env (mesmo arquivo do modo Mac).
+services:
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    env_file: apps/worker/.env
+    restart: unless-stopped
+    stop_grace_period: 30s
+    volumes:
+      - whisper-models:/models   # cache dos modelos Whisper entre reinícios
+    # Para mais paralelismo: WORKER_CONCURRENCY no .env ou `--scale worker=2`
+volumes:
+  whisper-models:

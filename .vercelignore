@@ -1,0 +1,9 @@
+node_modules
+**/node_modules
+**/.next
+apps/worker/.venv
+**/__pycache__
+.omc
+**/.env
+**/.env.local
+.env.local

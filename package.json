@@ -1,0 +1,21 @@
+{
+  "name": "openguardbjj",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @bjj/web",
+    "build": "npm run build -w @bjj/web",
+    "db:migrate": "npm run migrate -w @bjj/core",
+    "worker": "npm run start -w bjj-media-worker",
+    "worker:doctor": "npm run doctor -w bjj-media-worker",
+    "worker:dry-run": "npm run dry-run -w bjj-media-worker --",
+    "test": "npm run test -w @bjj/core",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20.9"
+  }
+}
