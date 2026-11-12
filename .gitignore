@@ -10,4 +10,3 @@ apps/worker/.venv/
 __pycache__/
 .DS_Store
 .omc/
-.env*
