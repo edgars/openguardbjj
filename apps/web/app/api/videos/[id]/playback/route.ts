@@ -5,9 +5,9 @@ import { getVideo, playbackUrls } from '@/lib/data';
  * Renova as URLs pré-assinadas (o player chama quando a URL expira).
  * ?redirect=thumbnail → 302 direto para a imagem (uso em <img>).
  */
-export const GET = withUser<{ id: string }>(async (req, userId, { id }) => {
+export const GET = withUser<{ id: string }>(async (req, user, { id }) => {
   assertUuid(id);
-  const video = await getVideo(userId, id);
+  const video = await getVideo(user, id);
   const urls = await playbackUrls(video);
   const redirect = new URL(req.url).searchParams.get('redirect');
   if (redirect === 'thumbnail' || redirect === 'video') {

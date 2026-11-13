@@ -43,15 +43,45 @@ export function StorageTable({ rows }: { rows: Row[] }) {
     run(id, `Apagar ${which}`, `/api/videos/${id}/assets?which=${which}`, { method: 'DELETE' },
       which === 'audio' ? 'Apagar o áudio armazenado? (retranscrições passarão a extrair o áudio do MP4)' : 'Apagar o arquivo de vídeo do Blob? A transcrição e as técnicas serão mantidas.');
 
+  const actions = (r: Row) => (
+    <>
+      <button className="btn-ghost px-2 py-1 text-xs" disabled={busy === r.id || r.status !== 'COMPLETED' || (r.videoBytes == null && r.audioBytes == null)}
+        onClick={() => run(r.id, 'Retranscrição', `/api/videos/${r.id}/reprocess`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'RETRANSCRIBE' }) })}>
+        Retranscrever
+      </button>
+      <button className="btn-danger px-2 py-1 text-xs" disabled={busy === r.id || r.videoBytes == null} onClick={() => del(r.id, 'video')}>Vídeo</button>
+      <button className="btn-danger px-2 py-1 text-xs" disabled={busy === r.id || r.audioBytes == null} onClick={() => del(r.id, 'audio')}>Áudio</button>
+      <button className="btn-danger px-2 py-1 text-xs" disabled={busy === r.id || (r.videoBytes == null && r.audioBytes == null)} onClick={() => del(r.id, 'both')}>Ambos</button>
+    </>
+  );
+
   return (
     <div className="card overflow-x-auto">
-      <div className="flex items-center gap-3 border-b border-mat-700 p-3 text-sm">
+      <div className="flex flex-wrap items-center gap-3 border-b border-mat-700 p-3 text-sm">
         <span className="text-zinc-400">Ordenar:</span>
         <button className={sort === 'size' ? 'text-belt' : 'text-zinc-400'} onClick={() => setSort('size')}>tamanho</button>
         <button className={sort === 'title' ? 'text-belt' : 'text-zinc-400'} onClick={() => setSort('title')}>título</button>
         {msg && <span className="ml-auto text-xs text-zinc-400">{msg}</span>}
       </div>
-      <table className="w-full min-w-[820px] text-sm">
+      {/* Mobile: lista de cartões */}
+      <ul className="divide-y divide-mat-700 md:hidden">
+        {sorted.map((r) => (
+          <li key={r.id} className="space-y-2 p-3 text-sm">
+            <div>
+              <Link href={`/videos/${r.id}`} className="line-clamp-2 break-words hover:text-belt">{r.title ?? r.id}</Link>
+              <span className="text-xs text-zinc-500">{r.status}{r.resolution ? ` · ${r.resolution}` : ''} · transcrição {r.transcription}</span>
+            </div>
+            <dl className="grid grid-cols-3 gap-2 text-xs">
+              <div><dt className="text-zinc-500">MP4</dt><dd className="tabular-nums">{formatBytes(r.videoBytes)}</dd></div>
+              <div><dt className="text-zinc-500">Áudio</dt><dd className="tabular-nums">{formatBytes(r.audioBytes)}</dd></div>
+              <div><dt className="text-zinc-500">Thumb</dt><dd className="tabular-nums">{formatBytes(r.thumbBytes)}</dd></div>
+            </dl>
+            <div className="flex flex-wrap gap-1.5">{actions(r)}</div>
+          </li>
+        ))}
+        {!rows.length && <li className="p-6 text-center text-sm text-zinc-500">Nenhum vídeo.</li>}
+      </ul>
+      <table className="hidden w-full min-w-[820px] text-sm md:table">
         <thead className="text-left text-xs uppercase tracking-wide text-zinc-500">
           <tr>
             <th className="p-3">Vídeo</th>
@@ -74,15 +104,7 @@ export function StorageTable({ rows }: { rows: Row[] }) {
               <td className="p-3 text-right tabular-nums">{formatBytes(r.thumbBytes)}</td>
               <td className="p-3 text-xs text-zinc-400">{r.transcription}</td>
               <td className="p-3">
-                <div className="flex flex-wrap justify-end gap-1.5">
-                  <button className="btn-ghost px-2 py-1 text-xs" disabled={busy === r.id || r.status !== 'COMPLETED' || (r.videoBytes == null && r.audioBytes == null)}
-                    onClick={() => run(r.id, 'Retranscrição', `/api/videos/${r.id}/reprocess`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'RETRANSCRIBE' }) })}>
-                    Retranscrever
-                  </button>
-                  <button className="btn-danger px-2 py-1 text-xs" disabled={busy === r.id || r.videoBytes == null} onClick={() => del(r.id, 'video')}>Vídeo</button>
-                  <button className="btn-danger px-2 py-1 text-xs" disabled={busy === r.id || r.audioBytes == null} onClick={() => del(r.id, 'audio')}>Áudio</button>
-                  <button className="btn-danger px-2 py-1 text-xs" disabled={busy === r.id || (r.videoBytes == null && r.audioBytes == null)} onClick={() => del(r.id, 'both')}>Ambos</button>
-                </div>
+                <div className="flex flex-wrap justify-end gap-1.5">{actions(r)}</div>
               </td>
             </tr>
           ))}

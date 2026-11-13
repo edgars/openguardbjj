@@ -93,20 +93,20 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 px-4 py-10" role="dialog" aria-modal="true" aria-labelledby="import-title">
-      <div className="card w-full max-w-lg p-5">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto overscroll-contain bg-black/70 sm:items-start sm:px-4 sm:py-10" role="dialog" aria-modal="true" aria-labelledby="import-title">
+      <div className="card max-h-[100dvh] w-full max-w-lg overflow-y-auto rounded-b-none p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-h-none sm:overflow-visible sm:rounded-b-lg sm:p-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 id="import-title" className="text-lg font-semibold">Importar vídeo</h2>
-          <button className="text-zinc-400 hover:text-zinc-100" onClick={() => { if (!busy) { reset(); onClose(); } }} aria-label="Fechar">✕</button>
+          <button className="-m-2 p-2 text-zinc-400 hover:text-zinc-100" onClick={() => { if (!busy) { reset(); onClose(); } }} aria-label="Fechar">✕</button>
         </div>
 
         {videoId ? (
           <div className="space-y-4">
             {notice && <p className="text-sm text-amber-300">{notice}</p>}
             <ImportStatus videoId={videoId} onFinished={onFinished} />
-            <div className="flex justify-end gap-2 border-t border-mat-700 pt-3">
+            <div className="flex flex-wrap justify-end gap-2 border-t border-mat-700 pt-3">
               <button className="btn-ghost" onClick={reset}>Importar outro</button>
-              <button className="btn-ghost" onClick={() => { reset(); onClose(); }}>Fechar (continua em segundo plano)</button>
+              <button className="btn-ghost" onClick={() => { reset(); onClose(); }}>Fechar<span className="hidden sm:inline">&nbsp;(continua em segundo plano)</span></button>
             </div>
           </div>
         ) : (
@@ -115,7 +115,7 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
               {(['url', 'file'] as const).map((t) => (
                 <button key={t} type="button" onClick={() => setTab(t)}
                   className={`flex-1 rounded px-3 py-1.5 ${tab === t ? 'bg-mat-600 text-zinc-100' : 'text-zinc-400'}`}>
-                  {t === 'url' ? 'URL (YouTube / Instagram)' : 'Enviar arquivo'}
+                  {t === 'url' ? <>URL<span className="hidden sm:inline"> (YouTube / Instagram)</span></> : 'Enviar arquivo'}
                 </button>
               ))}
             </div>
@@ -123,7 +123,7 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
             {tab === 'url' ? (
               <div>
                 <label className="label" htmlFor="url">URL do vídeo</label>
-                <input id="url" className="input" type="url" required placeholder="https://www.youtube.com/watch?v=… ou /shorts/… ou instagram.com/reel/…"
+                <input id="url" className="input" type="url" inputMode="url" autoCapitalize="off" autoCorrect="off" required placeholder="Link do YouTube, Shorts ou Instagram"
                   value={url} onChange={(e) => setUrl(e.target.value)} />
               </div>
             ) : (
@@ -144,7 +144,7 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
               <span className="label">Qualidade</span>
               <div className="flex gap-2">
                 {[480, 720, 1080].map((q) => (
-                  <label key={q} className={`flex-1 cursor-pointer rounded-md border px-3 py-1.5 text-center text-sm ${quality === q ? 'border-belt text-belt' : 'border-mat-600 text-zinc-300'}`}>
+                  <label key={q} className={`flex-1 cursor-pointer rounded-md border px-3 py-2 sm:py-1.5 text-center text-sm ${quality === q ? 'border-belt text-belt' : 'border-mat-600 text-zinc-300'}`}>
                     <input type="radio" name="quality" className="sr-only" checked={quality === q} onChange={() => setQuality(q)} />
                     {q}p
                   </label>
@@ -178,7 +178,7 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
             )}
             {error && <p className="whitespace-pre-wrap rounded-md border border-red-900 bg-red-950/40 p-3 text-sm text-red-200">{error}</p>}
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 [&>button]:flex-1 sm:[&>button]:flex-none">
               <button type="button" className="btn-ghost" onClick={() => { reset(); onClose(); }} disabled={busy}>Cancelar</button>
               <button className="btn-primary" disabled={busy || !authorized}>{busy ? 'Enviando…' : 'Importar'}</button>
             </div>

@@ -1,13 +1,13 @@
-import { assertUuid, HttpError, json, readJson, withUser } from '@/lib/api';
+import { assertUuid, HttpError, json, readJson, withAdmin } from '@/lib/api';
 import { withTransaction } from '@/lib/db';
 import { getVideo } from '@/lib/data';
 
 /** Reprocessa transcrição/análise a partir do áudio/vídeo já no Blob — sem baixar da origem. */
-export const POST = withUser<{ id: string }>(async (req, userId, { id }) => {
+export const POST = withAdmin<{ id: string }>(async (req, user, { id }) => {
   assertUuid(id);
   const { kind = 'RETRANSCRIBE' } = await readJson<{ kind?: 'RETRANSCRIBE' | 'REANALYZE' }>(req);
   if (kind !== 'RETRANSCRIBE' && kind !== 'REANALYZE') throw new HttpError(400, 'Tipo inválido.');
-  const video = await getVideo(userId, id);
+  const video = await getVideo(user, id);
   if (video.download_status !== 'COMPLETED') throw new HttpError(409, 'Aguarde a conclusão do processamento atual.');
   if (kind === 'RETRANSCRIBE' && !video.audio_pathname && !video.blob_pathname) {
     throw new HttpError(400, 'Sem vídeo ou áudio armazenado para transcrever.');

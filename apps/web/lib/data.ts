@@ -1,7 +1,8 @@
 import 'server-only';
 import { WORKER_ONLINE_WINDOW_SECONDS, type JobKind, type JobOptions } from '@bjj/core/status';
 import { getStorage } from '@bjj/core/storage';
-import { HttpError } from './api';
+import { HttpError } from './errors';
+import type { AppUser } from './auth';
 import { query, queryOne, withTransaction } from './db';
 
 export interface VideoRecord {
@@ -52,18 +53,76 @@ export interface JobRecord {
   created_at: string;
 }
 
-export async function listVideos(userId: string) {
-  return query<VideoRecord & { techniques: string[] | null }>(
-    `select v.*, (select array_agg(distinct t.name_pt) from video_techniques vt join techniques t on t.id = vt.technique_id where vt.video_id = v.id) as techniques
-       from videos v where v.user_id = $1 order by v.created_at desc limit 500`,
-    [userId],
+/**
+ * Biblioteca única, curada pelo admin. O admin vê tudo (inclusive em processamento/falha);
+ * usuários comuns veem só vídeos concluídos.
+ */
+const VISIBLE = `($2::boolean or v.download_status = 'COMPLETED')`;
+
+export async function listVideos(user: AppUser) {
+  return query<VideoRecord & { techniques: string[] | null; is_favorite: boolean }>(
+    `select v.*,
+            (select array_agg(distinct t.name_pt) from video_techniques vt join techniques t on t.id = vt.technique_id where vt.video_id = v.id) as techniques,
+            exists (select 1 from favorites f where f.video_id = v.id and f.user_id = $1) as is_favorite
+       from videos v where ${VISIBLE} order by v.created_at desc limit 500`,
+    [user.id, user.role === 'admin'],
   );
 }
 
-export async function getVideo(userId: string, id: string): Promise<VideoRecord> {
-  const v = await queryOne<VideoRecord>('select * from videos where id = $1 and user_id = $2', [id, userId]);
+export async function getVideo(user: AppUser, id: string): Promise<VideoRecord> {
+  const v = await queryOne<VideoRecord>(`select v.* from videos v where v.id = $1 and ${VISIBLE}`, [id, user.role === 'admin']);
   if (!v) throw new HttpError(404, 'Vídeo não encontrado.');
   return v;
+}
+
+export async function isFavorite(userId: string, videoId: string) {
+  return !!(await queryOne('select 1 from favorites where user_id = $1 and video_id = $2', [userId, videoId]));
+}
+
+export interface PlaylistSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  video_count: number;
+  cover_pathname: string | null;
+  updated_at: string;
+}
+
+export async function listPlaylists(user: AppUser) {
+  return query<PlaylistSummary>(
+    `select p.id, p.name, p.description, p.updated_at,
+            (select count(*)::int from playlist_videos pv join videos v on v.id = pv.video_id
+              where pv.playlist_id = p.id and ${VISIBLE}) as video_count,
+            (select v.thumbnail_pathname from playlist_videos pv join videos v on v.id = pv.video_id
+              where pv.playlist_id = p.id and v.thumbnail_pathname is not null and ${VISIBLE}
+              order by pv.position, pv.added_at limit 1) as cover_pathname
+       from playlists p where p.user_id = $1 order by p.updated_at desc`,
+    [user.id, user.role === 'admin'],
+  );
+}
+
+/** Playlists do usuário com a marcação de quais já contêm o vídeo (menu "Adicionar à playlist"). */
+export async function playlistsForVideo(userId: string, videoId: string) {
+  return query<{ id: string; name: string; has_video: boolean }>(
+    `select p.id, p.name, exists (select 1 from playlist_videos pv where pv.playlist_id = p.id and pv.video_id = $2) as has_video
+       from playlists p where p.user_id = $1 order by p.name`,
+    [userId, videoId],
+  );
+}
+
+export async function getPlaylist(user: AppUser, id: string) {
+  const playlist = await queryOne<{ id: string; name: string; description: string | null; updated_at: string }>(
+    'select id, name, description, updated_at from playlists where id = $1 and user_id = $2',
+    [id, user.id],
+  );
+  if (!playlist) throw new HttpError(404, 'Playlist não encontrada.');
+  // Vídeos ainda não concluídos (ou apagados pelo admin) somem da playlist para usuários comuns.
+  const videos = await query<VideoRecord & { position: number }>(
+    `select v.*, pv.position from playlist_videos pv join videos v on v.id = pv.video_id
+      where pv.playlist_id = $1 and ${VISIBLE} order by pv.position, pv.added_at`,
+    [id, user.role === 'admin'],
+  );
+  return { playlist, videos };
 }
 
 export async function latestJob(videoId: string) {
@@ -130,8 +189,8 @@ export async function createVideoWithJob(
   });
 }
 
-export async function getStatus(userId: string, id: string) {
-  const video = await getVideo(userId, id);
+export async function getStatus(user: AppUser, id: string) {
+  const video = await getVideo(user, id);
   const [job, worker] = await Promise.all([latestJob(id), workerStatus()]);
   return {
     video: {
@@ -200,10 +259,11 @@ export async function getTechniques(videoId: string) {
   );
 }
 
-export async function getNotes(videoId: string) {
+/** Notas são privadas: cada usuário vê apenas as suas. */
+export async function getNotes(videoId: string, userId: string) {
   return query<{ id: string; timestamp_seconds: number | null; body: string; created_at: string }>(
-    'select id, timestamp_seconds, body, created_at from notes where video_id = $1 order by timestamp_seconds nulls last, created_at',
-    [videoId],
+    'select id, timestamp_seconds, body, created_at from notes where video_id = $1 and user_id = $2 order by timestamp_seconds nulls last, created_at',
+    [videoId, userId],
   );
 }
 
@@ -217,7 +277,7 @@ export async function playbackUrls(v: Pick<VideoRecord, 'blob_pathname' | 'thumb
   return { video, thumbnail };
 }
 
-export async function storageStats(userId: string) {
+export async function storageStats() {
   const totals = await queryOne<{
     videos: number;
     with_file: number;
@@ -232,13 +292,33 @@ export async function storageStats(userId: string) {
             count(audio_pathname)::int as audio_files,
             coalesce(sum(audio_size_bytes) filter (where audio_pathname is not null), 0)::bigint as audio_bytes,
             coalesce(sum(thumbnail_size_bytes) filter (where thumbnail_pathname is not null), 0)::bigint as thumb_bytes
-       from videos where user_id = $1`,
-    [userId],
+       from videos`,
   );
   const added30d = await queryOne<{ bytes: number }>(
     `select coalesce(sum(coalesce(file_size_bytes,0) + coalesce(audio_size_bytes,0) + coalesce(thumbnail_size_bytes,0)), 0)::bigint as bytes
-       from videos where user_id = $1 and blob_pathname is not null and created_at > now() - interval '30 days'`,
-    [userId],
+       from videos where blob_pathname is not null and created_at > now() - interval '30 days'`,
   );
   return { ...totals!, added30dBytes: added30d?.bytes ?? 0 };
+}
+
+export interface UserRow {
+  id: string;
+  email: string;
+  name: string | null;
+  image_url: string | null;
+  role: 'admin' | 'user';
+  disabled: boolean;
+  created_at: string;
+  last_seen_at: string | null;
+  favorites: number;
+  playlists: number;
+}
+
+export async function listUsers() {
+  return query<UserRow>(
+    `select u.id, u.email, u.name, u.image_url, u.role, u.disabled, u.created_at, u.last_seen_at,
+            (select count(*)::int from favorites f where f.user_id = u.id) as favorites,
+            (select count(*)::int from playlists p where p.user_id = u.id) as playlists
+       from users u where u.clerk_id is not null order by u.role, u.created_at`,
+  );
 }

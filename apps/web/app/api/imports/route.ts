@@ -1,6 +1,6 @@
 import { QUALITIES, type Quality } from '@bjj/core/status';
 import { parseVideoUrl } from '@bjj/core/url';
-import { HttpError, json, readJson, withUser } from '@/lib/api';
+import { HttpError, json, readJson, withAdmin } from '@/lib/api';
 import { queryOne } from '@/lib/db';
 import { createVideoWithJob, workerStatus } from '@/lib/data';
 
@@ -16,7 +16,7 @@ interface ImportBody {
  * Cria o registro do vídeo + job de download no Neon e retorna imediatamente.
  * Nenhum download acontece aqui: o bjj-media-worker reserva o job e processa.
  */
-export const POST = withUser(async (req, userId) => {
+export const POST = withAdmin(async (req, user) => {
   const body = await readJson<ImportBody>(req);
   const parsed = parseVideoUrl(body.url ?? '');
   if (!parsed.ok) throw new HttpError(400, parsed.error);
@@ -32,16 +32,16 @@ export const POST = withUser(async (req, userId) => {
 
   const existing = await queryOne<{ id: string; download_status: string }>(
     `select id, download_status from videos
-      where user_id = $1 and platform = $2 and external_id = $3 and download_status not in ('FAILED','CANCELLED')
+      where platform = $1 and external_id = $2 and download_status not in ('FAILED','CANCELLED')
       order by created_at desc limit 1`,
-    [userId, parsed.platform, parsed.externalId],
+    [parsed.platform, parsed.externalId],
   );
   if (existing) return json({ videoId: existing.id, existing: true, status: existing.download_status }, 200);
 
   const transcribe = body.transcribe !== false;
   const analyze = body.analyze !== false;
   const { videoId, jobId } = await createVideoWithJob(
-    userId,
+    user.id,
     {
       platform: parsed.platform,
       sourceUrl: parsed.normalizedUrl,

@@ -144,9 +144,9 @@ export function VideoWorkspace(props: {
   }, [techniques]);
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
+    <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
       <div className="space-y-3">
-        <div ref={containerRef} className="overflow-hidden rounded-lg bg-black">
+        <div ref={containerRef} className="-mx-4 overflow-hidden bg-black sm:mx-0 sm:rounded-lg">
           <video
             ref={videoRef}
             src={src}
@@ -154,7 +154,7 @@ export function VideoWorkspace(props: {
             controls
             playsInline
             preload="metadata"
-            className="aspect-video w-full bg-black"
+            className="mx-auto block max-h-[75vh] min-h-[200px] w-full bg-black object-contain"
             onLoadedMetadata={(e) => {
               setDuration(e.currentTarget.duration);
               e.currentTarget.playbackRate = speed;
@@ -168,19 +168,21 @@ export function VideoWorkspace(props: {
         </div>
 
         <div className="card flex flex-wrap items-center gap-2 p-2 text-sm">
-          <button className="btn-ghost" onClick={() => skip(-10)} title="Voltar 10 s (j)">⟲ 10s</button>
-          <button className="btn-ghost" onClick={() => skip(-5)} title="Voltar 5 s (←)">−5s</button>
-          <button className="btn-primary min-w-20" onClick={togglePlay} title="Play/pause (espaço)">{playing ? 'Pausar' : 'Play'}</button>
-          <button className="btn-ghost" onClick={() => skip(5)} title="Avançar 5 s (→)">+5s</button>
-          <button className="btn-ghost" onClick={() => skip(10)} title="Avançar 10 s (l)">10s ⟳</button>
-          <span className="mx-2 font-mono text-xs tabular-nums text-zinc-400">{formatTimestamp(time)} / {formatTimestamp(duration)}</span>
+          <button className="btn-ghost flex-1 sm:flex-none" onClick={() => skip(-10)} title="Voltar 10 s (j)">⟲ 10s</button>
+          <button className="btn-ghost hidden sm:inline-flex" onClick={() => skip(-5)} title="Voltar 5 s (←)">−5s</button>
+          <button className="btn-primary min-w-20 flex-1 sm:flex-none" onClick={togglePlay} title="Play/pause (espaço)">{playing ? 'Pausar' : 'Play'}</button>
+          <button className="btn-ghost hidden sm:inline-flex" onClick={() => skip(5)} title="Avançar 5 s (→)">+5s</button>
+          <button className="btn-ghost flex-1 sm:flex-none" onClick={() => skip(10)} title="Avançar 10 s (l)">10s ⟳</button>
+          <div className="flex w-full items-center gap-2 sm:contents">
+          <span className="font-mono text-xs tabular-nums text-zinc-400 sm:mx-2">{formatTimestamp(time)} / {formatTimestamp(duration)}</span>
           <label className="ml-auto flex items-center gap-1 text-xs text-zinc-400">
-            Velocidade
-            <select className="rounded border border-mat-600 bg-mat-900 px-1.5 py-1 text-zinc-100" value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
+            <span className="hidden sm:inline">Velocidade</span>
+            <select aria-label="Velocidade" className="rounded border border-mat-600 bg-mat-900 px-1.5 py-1.5 text-base text-zinc-100 sm:py-1 sm:text-xs" value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
               {SPEEDS.map((s) => <option key={s} value={s}>{s}×</option>)}
             </select>
           </label>
-          <button className="btn-ghost" onClick={fullscreen} title="Tela cheia (f)">⛶</button>
+          <button className="btn-ghost" onClick={fullscreen} title="Tela cheia (f)" aria-label="Tela cheia">⛶</button>
+          </div>
         </div>
         <input
           type="range"
@@ -189,16 +191,16 @@ export function VideoWorkspace(props: {
           step={0.1}
           value={Math.min(time, duration || 0)}
           onChange={(e) => seek(Number(e.target.value), !videoRef.current?.paused)}
-          className="w-full accent-[#c8a24a]"
+          className="h-6 w-full accent-[#c8a24a]"
           aria-label="Linha do tempo"
         />
         {/* Marcadores de técnicas na linha do tempo */}
         {duration > 0 && techniques.some((t) => t.start_seconds != null) && (
-          <div className="relative h-4">
+          <div className="relative mx-1.5 h-5">
             {techniques.filter((t) => t.start_seconds != null).map((t) => (
               <button key={t.id} title={`${t.name_pt} — ${formatTimestamp(t.start_seconds)}`}
                 onClick={() => seek(Math.max(0, t.start_seconds! - 2))}
-                className="absolute top-0 h-4 w-1.5 -translate-x-1/2 rounded-sm bg-belt/80 hover:bg-belt"
+                className="absolute top-0 h-5 w-2 -translate-x-1/2 rounded-sm bg-belt/80 hover:bg-belt sm:h-4 sm:w-1.5"
                 style={{ left: `${(t.start_seconds! / duration) * 100}%` }} />
             ))}
           </div>
@@ -219,7 +221,7 @@ export function VideoWorkspace(props: {
                     {list.map((t) => (
                       <button key={t.id} onClick={() => t.start_seconds != null && seek(Math.max(0, t.start_seconds - 2))}
                         title={t.evidence ?? undefined}
-                        className="rounded-md border border-mat-600 px-2 py-1 text-left text-xs hover:border-belt">
+                        className="rounded-md border border-mat-600 px-2.5 py-1.5 text-left text-xs hover:border-belt sm:px-2 sm:py-1">
                         <span className="font-medium">{t.name_pt}</span>
                         {t.start_seconds != null && <span className="ml-1.5 font-mono text-belt">{formatTimestamp(t.start_seconds)}</span>}
                         <span className="ml-1.5 text-zinc-500">{Math.round(t.confidence * 100)}%{t.source === 'llm' ? ' · IA' : ''}</span>
@@ -234,7 +236,7 @@ export function VideoWorkspace(props: {
       </div>
 
       <aside className="space-y-4">
-        <section className="card flex max-h-[70vh] flex-col">
+        <section className="card flex max-h-[60vh] flex-col lg:max-h-[70vh]">
           <div className="flex items-center gap-2 border-b border-mat-700 p-3">
             <h2 className="text-sm font-semibold">Transcrição</h2>
             {props.transcriptMeta && <span className="text-xs text-zinc-500">{props.transcriptMeta.language} · {props.transcriptMeta.model}</span>}
@@ -250,14 +252,14 @@ export function VideoWorkspace(props: {
           <div ref={transcriptRef} className="relative flex-1 overflow-y-auto p-2 text-sm">
             {!segments.length ? (
               <p className="p-2 text-zinc-400">
-                {props.transcriptionStatus === 'FAILED' ? 'A transcrição falhou — use “Reprocessar transcrição”.'
+                {props.transcriptionStatus === 'FAILED' ? 'A transcrição falhou.'
                   : props.transcriptionStatus === 'NOT_REQUESTED' ? 'Transcrição não solicitada.'
                   : 'Transcrição pendente.'}
               </p>
             ) : (
               shown.map(({ s, i }) => (
                 <button key={i} data-idx={i} onClick={() => seek(s.start)}
-                  className={`block w-full rounded px-2 py-1 text-left ${i === activeIdx ? 'bg-belt/15 text-zinc-50' : 'text-zinc-300 hover:bg-mat-800'}`}>
+                  className={`block w-full rounded px-2 py-1.5 text-left sm:py-1 ${i === activeIdx ? 'bg-belt/15 text-zinc-50' : 'text-zinc-300 hover:bg-mat-800'}`}>
                   <span className="mr-2 font-mono text-xs text-belt">{formatTimestamp(s.start)}</span>
                   {s.text}
                 </button>
@@ -267,9 +269,9 @@ export function VideoWorkspace(props: {
         </section>
 
         <section className="card p-3">
-          <h2 className="mb-2 text-sm font-semibold">Notas</h2>
+          <h2 className="mb-2 text-sm font-semibold">Minhas notas <span className="font-normal text-zinc-500">· privadas</span></h2>
           <form onSubmit={addNote} className="mb-2 flex gap-2">
-            <input className="input py-1.5" placeholder={`Nota em ${formatTimestamp(time)}`} value={noteText} onChange={(e) => setNoteText(e.target.value)} />
+            <input className="input min-w-0 py-1.5" placeholder={`Nota em ${formatTimestamp(time)}`} value={noteText} onChange={(e) => setNoteText(e.target.value)} />
             <button className="btn-ghost">Salvar</button>
           </form>
           <ul className="space-y-1 text-sm">

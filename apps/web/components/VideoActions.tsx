@@ -36,8 +36,8 @@ export function VideoActions({
   const post = (body: unknown) => ({ method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 
   return (
-    <div className="flex flex-col items-end gap-2">
-      <div className="flex flex-wrap justify-end gap-2">
+    <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+      <div className="flex flex-wrap gap-2 sm:justify-end">
         {done && (hasVideo || hasAudio) && (
           <button className="btn-ghost" disabled={busy} onClick={async () => {
             if (await call(`/api/videos/${videoId}/reprocess`, post({ kind: 'RETRANSCRIBE' }))) { setMsg('Retranscrição na fila (usa o arquivo já armazenado).'); router.refresh(); }

@@ -31,6 +31,13 @@ export function getPool(): pg.Pool {
       connectionString,
       max: Number(process.env.PG_POOL_MAX ?? 5),
       idleTimeoutMillis: 10_000,
+      connectionTimeoutMillis: 15_000,
+      keepAlive: true,
+    });
+    // Conexões ociosas podem cair (rede, sleep do Mac, Neon suspenso). Sem este handler o Pool
+    // emite 'error' sem ouvinte e derruba o processo; o cliente quebrado já é descartado pelo pg.
+    globalThis.__bjjPool.on('error', (err) => {
+      console.warn(`[db] conexão ociosa descartada: ${err.message}`);
     });
     onCreate?.(globalThis.__bjjPool);
   }

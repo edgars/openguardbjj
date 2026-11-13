@@ -149,7 +149,7 @@ export function ImportStatus({ videoId, onFinished, showOpenLink = true }: { vid
       {waitingWorker && (
         <div className="rounded-md border border-amber-800 bg-amber-950/40 p-3 text-sm text-amber-200">
           Nenhum worker ativo. O job está salvo na fila e começa assim que você iniciar o worker:
-          <code className="mt-1 block font-mono text-xs">npm run worker</code>
+          <code className="mt-1 block break-all font-mono text-xs">npm run worker</code>
         </div>
       )}
       {retryAt && !failed && (
@@ -157,7 +157,7 @@ export function ImportStatus({ videoId, onFinished, showOpenLink = true }: { vid
       )}
       {job?.cancel_requested && job.status === 'RUNNING' && <p className="text-xs text-zinc-400">Cancelamento solicitado — aguardando o worker interromper…</p>}
       {message && (
-        <pre className={`whitespace-pre-wrap rounded-md border p-3 text-xs ${failed ? 'border-red-900 bg-red-950/40 text-red-200' : 'border-mat-600 text-zinc-300'}`}>
+        <pre className={`whitespace-pre-wrap break-words rounded-md border p-3 text-xs ${failed ? 'border-red-900 bg-red-950/40 text-red-200' : 'border-mat-600 text-zinc-300'}`}>
           {message}
         </pre>
       )}

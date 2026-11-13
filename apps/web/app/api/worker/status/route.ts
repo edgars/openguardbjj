@@ -1,8 +1,8 @@
-import { json, withUser } from '@/lib/api';
+import { json, withAdmin } from '@/lib/api';
 import { query } from '@/lib/db';
 import { workerStatus } from '@/lib/data';
 
-export const GET = withUser(async () => {
+export const GET = withAdmin(async () => {
   const [worker, queue] = await Promise.all([
     workerStatus(),
     query<{ status: string; n: number }>(`select status, count(*)::int as n from download_jobs where status in ('PENDING','RUNNING') group by status`),

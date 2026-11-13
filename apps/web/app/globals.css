@@ -6,13 +6,18 @@
   color-scheme: dark;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   @apply bg-mat-950 text-zinc-100 antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition sm:py-1.5
       disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
@@ -25,7 +30,7 @@ body {
     @apply btn border border-red-900 text-red-300 hover:bg-red-950;
   }
   .input {
-    @apply w-full rounded-md border border-mat-600 bg-mat-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500
+    @apply w-full rounded-md border border-mat-600 bg-mat-900 px-3 py-2 text-base text-zinc-100 sm:text-sm placeholder:text-zinc-500
       focus:border-belt focus:outline-none;
   }
   .card {

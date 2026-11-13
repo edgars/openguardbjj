@@ -1,6 +1,7 @@
 import { head } from '@vercel/blob';
 import { getStorage } from '@bjj/core/storage';
-import { currentUserId } from '@/lib/auth';
+import { getAppUser } from '@/lib/auth';
+import { isUuid } from '@/lib/api';
 import { queryOne } from '@/lib/db';
 
 /**
@@ -11,13 +12,14 @@ import { queryOne } from '@/lib/db';
 const CHUNK = 4 * 1024 * 1024 - 64 * 1024;
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const userId = await currentUserId();
-  if (!userId) return new Response('Não autenticado', { status: 401 });
+  const user = await getAppUser();
+  if (!user) return new Response('Não autenticado', { status: 401 });
+  if (user.disabled) return new Response('Conta bloqueada', { status: 403 });
   const { id } = await ctx.params;
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return new Response('Não encontrado', { status: 404 });
+  if (!isUuid(id)) return new Response('Não encontrado', { status: 404 });
   const v = await queryOne<{ blob_pathname: string | null; file_size_bytes: number | null }>(
-    'select blob_pathname, file_size_bytes from videos where id = $1 and user_id = $2',
-    [id, userId],
+    `select blob_pathname, file_size_bytes from videos where id = $1 and ($2 or download_status = 'COMPLETED')`,
+    [id, user.role === 'admin'],
   );
   if (!v?.blob_pathname) return new Response('Não encontrado', { status: 404 });
 

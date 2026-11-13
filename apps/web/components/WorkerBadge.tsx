@@ -36,8 +36,12 @@ export function WorkerBadge() {
       title={info.online ? 'Worker ativo' : 'Nenhum worker ativo: jobs ficam na fila até um worker ser iniciado'}
     >
       <span className={`h-2 w-2 rounded-full ${info.online ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-      {info.online ? 'Worker online' : 'Worker offline'}
-      {(pending > 0 || running > 0) && <span className="text-zinc-400">· {running} rodando · {pending} na fila</span>}
+      <span><span className="hidden sm:inline">Worker </span>{info.online ? 'online' : 'offline'}</span>
+      {(pending > 0 || running > 0) && (
+        <span className="text-zinc-400">
+          · {running}<span className="hidden sm:inline"> rodando</span> / {pending}<span className="hidden sm:inline"> na fila</span>
+        </span>
+      )}
     </span>
   );
 }

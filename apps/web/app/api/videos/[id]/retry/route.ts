@@ -1,13 +1,13 @@
 import { head } from '@vercel/blob';
 import type { JobKind, JobOptions } from '@bjj/core/status';
-import { assertUuid, HttpError, json, withUser } from '@/lib/api';
+import { assertUuid, HttpError, json, withAdmin } from '@/lib/api';
 import { withTransaction } from '@/lib/db';
 import { getVideo, latestJob } from '@/lib/data';
 
 /** Tenta novamente um import que falhou/cancelou, ou baixa de novo um MP4 apagado do storage. */
-export const POST = withUser<{ id: string }>(async (_req, userId, { id }) => {
+export const POST = withAdmin<{ id: string }>(async (_req, user, { id }) => {
   assertUuid(id);
-  const video = await getVideo(userId, id);
+  const video = await getVideo(user, id);
   const failed = video.download_status === 'FAILED' || video.download_status === 'CANCELLED';
   const missingFile = !video.blob_pathname && video.download_status === 'COMPLETED';
   if (!failed && !missingFile) throw new HttpError(409, 'Este vídeo não está em estado de falha.');

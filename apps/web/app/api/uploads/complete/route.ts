@@ -1,6 +1,6 @@
 import { head } from '@vercel/blob';
 import { QUALITIES, type Quality } from '@bjj/core/status';
-import { HttpError, json, readJson, withUser } from '@/lib/api';
+import { HttpError, json, readJson, withAdmin } from '@/lib/api';
 import { createVideoWithJob } from '@/lib/data';
 
 interface CompleteBody {
@@ -13,7 +13,7 @@ interface CompleteBody {
 }
 
 /** Após o Client Upload: confirma que o blob existe e enfileira o processamento no worker. */
-export const POST = withUser(async (req, userId) => {
+export const POST = withAdmin(async (req, user) => {
   const body = await readJson<CompleteBody>(req);
   if (!body.pathname || !body.pathname.startsWith('uploads/')) throw new HttpError(400, 'Pathname inválido.');
   if (body.authorized !== true) throw new HttpError(400, 'Confirme a autorização para armazenar este arquivo.');
@@ -27,7 +27,7 @@ export const POST = withUser(async (req, userId) => {
   const transcribe = body.transcribe !== false;
   const analyze = body.analyze !== false;
   const { videoId, jobId } = await createVideoWithJob(
-    userId,
+    user.id,
     {
       platform: 'upload',
       sourceUrl: null,

@@ -1,6 +1,6 @@
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
-import { currentUserId } from '@/lib/auth';
-import { json } from '@/lib/api';
+import { getAppUser, isAdmin } from '@/lib/auth';
+import { HttpError, json } from '@/lib/api';
 
 const MAX_UPLOAD_BYTES = Number(process.env.MAX_UPLOAD_MB ?? 4096) * 1024 * 1024;
 
@@ -15,8 +15,8 @@ export async function POST(req: Request) {
       request: req,
       body,
       onBeforeGenerateToken: async (pathname) => {
-        if (!(await currentUserId())) throw new Error('Não autenticado.');
-        if (!/^uploads\/[0-9a-f-]{36}\/[\w.\- ]{1,200}$/i.test(pathname)) throw new Error('Pathname de upload inválido.');
+        if (!isAdmin(await getAppUser())) throw new HttpError(403, 'Apenas o administrador pode enviar vídeos.');
+        if (!/^uploads\/[0-9a-f-]{36}\/[\w.\- ]{1,200}$/i.test(pathname)) throw new HttpError(400, 'Pathname de upload inválido.');
         return {
           allowedContentTypes: ['video/*'],
           maximumSizeInBytes: MAX_UPLOAD_BYTES,
@@ -27,6 +27,9 @@ export async function POST(req: Request) {
     });
     return json(result);
   } catch (err) {
-    return json({ error: (err as Error).message }, 400);
+    // Só mensagens próprias vão ao cliente; erros internos (banco, Clerk, Blob) ficam no log.
+    if (err instanceof HttpError) return json({ error: err.message }, err.status);
+    console.error('upload token:', err);
+    return json({ error: 'Não foi possível autorizar o upload.' }, 400);
   }
 }

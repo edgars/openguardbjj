@@ -1,4 +1,4 @@
-import { assertUuid, HttpError, json, withUser } from '@/lib/api';
+import { assertUuid, HttpError, json, withAdmin } from '@/lib/api';
 import { queryOne, query } from '@/lib/db';
 import { getVideo } from '@/lib/data';
 
@@ -8,9 +8,9 @@ import { getVideo } from '@/lib/data';
  *  - job RUNNING → cancel_requested; o worker interrompe em ≤10 s, apaga blobs parciais e confirma.
  * Se o worker devolver um job com cancel_requested à fila, o próximo claim o finaliza como cancelado.
  */
-export const POST = withUser<{ id: string }>(async (_req, userId, { id }) => {
+export const POST = withAdmin<{ id: string }>(async (_req, user, { id }) => {
   assertUuid(id);
-  const video = await getVideo(userId, id);
+  const video = await getVideo(user, id);
   const job = await queryOne<{ status: string; kind: string }>(
     `update download_jobs
         set cancel_requested = true,

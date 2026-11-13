@@ -1,75 +1,157 @@
 import 'server-only';
-import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { cache } from 'react';
+import { auth, clerkClient, currentUser } from '@clerk/nextjs/server';
+import { isClerkAPIResponseError } from '@clerk/nextjs/errors';
+import { notFound, redirect } from 'next/navigation';
 import { queryOne } from './db';
 
 /**
- * Autenticação de biblioteca pessoal: um dono (OWNER_EMAIL) com senha (APP_PASSWORD).
- * Sessão = cookie httpOnly assinado com HMAC (AUTH_SECRET). Nenhum segredo vai ao navegador.
+ * Autenticação via Clerk. Cada conta Clerk vira uma linha em `users` (clerk_id).
+ * - Super admin: e-mail SUPER_ADMIN_EMAIL (padrão edgar@skalena.com), somente se VERIFICADO no Clerk.
+ *   Gerencia a biblioteca (importa, apaga, storage, worker, usuários).
+ * - Demais contas: role 'user' — assistem à biblioteca e organizam favoritos, playlists e notas próprias.
  */
-const COOKIE = 'bjj_session';
-const TTL_SECONDS = 30 * 24 * 3600;
+export type Role = 'admin' | 'user';
 
-function secret(): string {
-  const s = process.env.AUTH_SECRET;
-  if (!s || s.length < 32) throw new Error('AUTH_SECRET ausente ou curto (mínimo 32 caracteres).');
-  return s;
+export interface AppUser {
+  id: string;
+  clerkId: string;
+  email: string;
+  name: string | null;
+  imageUrl: string | null;
+  role: Role;
+  disabled: boolean;
 }
 
-const mac = (payload: string) => createHmac('sha256', secret()).update(payload).digest('base64url');
+export const SUPER_ADMIN_EMAIL = (process.env.SUPER_ADMIN_EMAIL || 'edgar@skalena.com').trim().toLowerCase();
 
-function safeEqual(a: string, b: string) {
-  const ha = createHash('sha256').update(a).digest();
-  const hb = createHash('sha256').update(b).digest();
-  return timingSafeEqual(ha, hb);
+type Row = { id: string; clerk_id: string; email: string; name: string | null; image_url: string | null; role: Role; disabled: boolean };
+
+const toUser = (r: Row): AppUser => ({
+  id: r.id,
+  clerkId: r.clerk_id,
+  email: r.email,
+  name: r.name,
+  imageUrl: r.image_url,
+  role: r.role,
+  disabled: r.disabled,
+});
+
+const COLS = 'id, clerk_id, email, name, image_url, role, disabled';
+
+const SYNTHETIC = /@(unverified|dup)\.clerk$/;
+
+/** true se a conta Clerk ainda existe nesta instância (falso se apagada ou de outra instância, ex.: dev → prod). */
+async function clerkAccountExists(clerkId: string): Promise<boolean> {
+  try {
+    await (await clerkClient()).users.getUser(clerkId);
+    return true;
+  } catch (err) {
+    if (isClerkAPIResponseError(err) && err.status === 404) return false;
+    throw err;
+  }
 }
 
-export function checkPassword(password: string): boolean {
-  const expected = process.env.APP_PASSWORD;
-  if (!expected) throw new Error('APP_PASSWORD não configurada.');
-  return safeEqual(password, expected);
+/**
+ * Cria/vincula o usuário local a partir do perfil Clerk (1º acesso, conta Clerk recriada,
+ * ou e-mail que só foi verificado depois). O vínculo é sempre pelo clerk_id; o e-mail só
+ * é usado para reaproveitar uma linha existente quando está VERIFICADO no Clerk.
+ */
+async function provision(clerkId: string, current: Row | null): Promise<AppUser | null> {
+  const cu = await currentUser();
+  if (!cu || cu.id !== clerkId) return current ? toUser(current) : null;
+  const primary = cu.emailAddresses.find((e) => e.id === cu.primaryEmailAddressId) ?? cu.emailAddresses[0];
+  const email = primary?.emailAddress.trim().toLowerCase() ?? '';
+  const verified = !!primary && primary.verification?.status === 'verified';
+  const name = [cu.firstName, cu.lastName].filter(Boolean).join(' ') || cu.username || null;
+  const image = cu.imageUrl ?? null;
+  const isSuperAdmin = verified && email === SUPER_ADMIN_EMAIL;
+  const role: Role = isSuperAdmin ? 'admin' : 'user';
+
+  if (verified) {
+    const byEmail = await queryOne<Row>(`select ${COLS} from users where lower(email) = $1`, [email]);
+    if (byEmail && byEmail.clerk_id === clerkId) return toUser(byEmail);
+    if (byEmail) {
+      // Linha de outra conta Clerk com o mesmo e-mail verificado. O Clerk garante e-mail único por
+      // instância, então a conta antiga foi apagada/recriada ou é de outra instância: a linha (e o
+      // bloqueio, favoritos e playlists) passa para a conta nova. O super admin sempre retoma a sua.
+      const stale = !byEmail.clerk_id || isSuperAdmin || !(await clerkAccountExists(byEmail.clerk_id));
+      if (stale) {
+        const moved = await queryOne<Row>(
+          `update users set clerk_id = $2, name = coalesce(name, $3), image_url = $4, role = $5, last_seen_at = now()
+            where id = $1 and clerk_id is not distinct from $6 returning ${COLS}`,
+          [byEmail.id, clerkId, name, image, role, byEmail.clerk_id],
+        );
+        if (moved) {
+          // Uma linha provisória desta mesma conta (antes de verificar o e-mail) deixa de ser usada.
+          if (current && current.id !== moved.id) await queryOne('delete from users where id = $1', [current.id]);
+          return toUser(moved);
+        }
+      }
+    } else if (current) {
+      // E-mail verificado depois do 1º acesso: corrige o e-mail provisório e o papel.
+      const fixed = await queryOne<Row>(
+        `update users set email = $2, name = coalesce(name, $3), image_url = $4, role = $5 where id = $1 returning ${COLS}`,
+        [current.id, email, name, image, role],
+      ).catch((err: any) => (err?.code === '23505' ? null : Promise.reject(err)));
+      if (fixed) return toUser(fixed);
+    }
+  }
+  if (current) return toUser(current);
+
+  // Conta nova. E-mail não verificado (ou já em uso por uma conta Clerk ativa) recebe um e-mail
+  // provisório único e herda o bloqueio da linha original, se houver.
+  const inherited = verified
+    ? await queryOne<{ disabled: boolean }>('select disabled from users where lower(email) = $1', [email])
+    : null;
+  const storedEmail = !verified ? `${clerkId}@unverified.clerk` : inherited ? `${clerkId}@dup.clerk` : email;
+  try {
+    const row = await queryOne<Row>(
+      `insert into users (clerk_id, email, name, image_url, role, disabled, last_seen_at)
+       values ($1, $2, $3, $4, $5, $6, now())
+       on conflict (clerk_id) do update set last_seen_at = now()
+       returning ${COLS}`,
+      [clerkId, storedEmail, name, image, inherited ? 'user' : role, inherited?.disabled ?? false],
+    );
+    return row ? toUser(row) : null;
+  } catch (err: any) {
+    // Corrida entre duas requisições do 1º acesso: a outra já criou a linha.
+    if (err?.code !== '23505') throw err;
+    const row = await queryOne<Row>(`select ${COLS} from users where clerk_id = $1`, [clerkId]);
+    if (!row) throw err;
+    return toUser(row);
+  }
 }
 
-export async function ensureOwner(): Promise<string> {
-  const email = (process.env.OWNER_EMAIL || 'owner@localhost').toLowerCase();
-  const row = await queryOne<{ id: string }>(
-    `insert into users (email, name) values ($1, $2)
-     on conflict (email) do update set email = excluded.email returning id`,
-    [email, process.env.OWNER_NAME || null],
-  );
-  return row!.id;
+/** Usuário atual (memoizado por request). null = não autenticado no Clerk. */
+export const getAppUser = cache(async (): Promise<AppUser | null> => {
+  const { userId: clerkId } = await auth();
+  if (!clerkId) return null;
+  const row =
+    (await queryOne<Row>(
+      `update users set last_seen_at = now() where clerk_id = $1
+         and (last_seen_at is null or last_seen_at < now() - interval '10 minutes')
+       returning ${COLS}`,
+      [clerkId],
+    )) ?? (await queryOne<Row>(`select ${COLS} from users where clerk_id = $1`, [clerkId]));
+  // Linha provisória (e-mail ainda não verificado) é reavaliada até o e-mail ser verificado.
+  if (row && !SYNTHETIC.test(row.email)) return toUser(row);
+  return provision(clerkId, row);
+});
+
+export const isAdmin = (u: AppUser | null | undefined) => !!u && !u.disabled && u.role === 'admin';
+
+/** Páginas: exige login (redireciona ao /sign-in) e conta ativa. */
+export async function requireUser(): Promise<AppUser> {
+  const u = await getAppUser();
+  if (!u) redirect('/sign-in');
+  if (u.disabled) redirect('/blocked');
+  return u;
 }
 
-export async function startSession(userId: string) {
-  const exp = Math.floor(Date.now() / 1000) + TTL_SECONDS;
-  const payload = `${userId}.${exp}`;
-  (await cookies()).set(COOKIE, `${payload}.${mac(payload)}`, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: TTL_SECONDS,
-  });
-}
-
-export async function endSession() {
-  (await cookies()).delete(COOKIE);
-}
-
-export async function currentUserId(): Promise<string | null> {
-  const raw = (await cookies()).get(COOKIE)?.value;
-  if (!raw) return null;
-  const [userId, exp, sig] = raw.split('.');
-  if (!userId || !exp || !sig) return null;
-  if (!safeEqual(sig, mac(`${userId}.${exp}`))) return null;
-  if (Number(exp) < Date.now() / 1000) return null;
-  return userId;
-}
-
-/** Para Server Components/páginas: redireciona ao login. */
-export async function requireUser(): Promise<string> {
-  const id = await currentUserId();
-  if (!id) redirect('/login');
-  return id;
+/** Páginas exclusivas do super admin: para os demais, a rota não existe. */
+export async function requireAdmin(): Promise<AppUser> {
+  const u = await requireUser();
+  if (u.role !== 'admin') notFound();
+  return u;
 }

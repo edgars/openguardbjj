@@ -1,19 +1,18 @@
 import { list } from '@vercel/blob';
-import { json, withUser } from '@/lib/api';
+import { json, withAdmin } from '@/lib/api';
 import { query } from '@/lib/db';
 
 /**
  * Soma o uso REAL do Blob (via list) e aponta blobs órfãos (sem registro no Neon) —
  * útil para conferir o banco contra o storage e evitar custo com arquivos esquecidos.
  */
-export const GET = withUser(async (_req, userId) => {
+export const GET = withAdmin(async () => {
   const known = new Set(
     (
       await query<{ p: string }>(
-        `select unnest(array[blob_pathname, audio_pathname, thumbnail_pathname]) as p from videos where user_id = $1
+        `select unnest(array[blob_pathname, audio_pathname, thumbnail_pathname]) as p  from videos
          union select options->>'uploadPathname' from download_jobs j join videos v on v.id = j.video_id
-          where v.user_id = $1 and j.options ? 'uploadPathname'`,
-        [userId],
+          where j.options ? 'uploadPathname'`,
       )
     )
       .map((r) => r.p)

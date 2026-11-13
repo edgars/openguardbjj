@@ -24,7 +24,14 @@ classificadas por técnica. O player toca o **arquivo armazenado** — não usa 
 
 1. Crie o projeto na Vercel com **Root Directory = `apps/web`** (npm workspaces são detectados automaticamente).
 2. Em **Storage**, conecte **Neon** (Marketplace) e crie um **Blob Store privado**, ambos ligados ao projeto.
-3. Variáveis do projeto (veja `apps/web/.env.example`): `APP_PASSWORD`, `AUTH_SECRET` (`openssl rand -base64 48`), `OWNER_EMAIL`, `BLOB_ACCESS=private`.
+3. Variáveis do projeto (veja `apps/web/.env.example`): chaves do Clerk (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`), `SUPER_ADMIN_EMAIL`, `BLOB_ACCESS=private`.
+
+### Usuários e papéis (Clerk)
+
+- **Super admin** — a conta Clerk cujo e-mail *verificado* é `SUPER_ADMIN_EMAIL`. Importa/envia/apaga vídeos, reprocessa, vê Storage, status do worker e a página **Usuários** (bloquear/desbloquear contas).
+- **User** — qualquer pessoa pode criar conta. Vê os vídeos *concluídos* da biblioteca e organiza **favoritos**, **playlists** (criar, renomear, reordenar, remover) e **notas** — tudo privado por usuário.
+- O papel é lido do Neon a cada requisição (bloqueio vale na hora). Se a conta Clerk for recriada (ou ao migrar da instância de desenvolvimento para a de produção do Clerk), a linha do usuário é reassociada pelo e-mail verificado.
+- Em `*.vercel.app` use as chaves de **Development** do Clerk; a instância de produção do Clerk exige domínio próprio. No painel do Clerk, mantenha apenas provedores que verificam e-mail (e-mail/senha, Google, GitHub).
 4. Localmente: `vercel link` → `vercel env pull apps/web/.env.local`.
 5. Migrations: `DATABASE_URL=... npm run db:migrate` (idempotente; também sincroniza as 82 técnicas).
 

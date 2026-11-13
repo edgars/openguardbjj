@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { STAGE_LABEL_PT, isTerminal, type VideoStage } from '@bjj/core/status';
 import { formatBytes, formatTimestamp } from '@bjj/core/format';
 import { ImportModal } from './ImportModal';
+import { FavoriteButton } from './FavoriteButton';
 
 export interface LibraryItem {
   id: string;
@@ -22,15 +23,17 @@ export interface LibraryItem {
   thumbnail: string | null;
   error: string | null;
   createdAt: string;
+  favorite: boolean;
 }
 
 const PLATFORM_LABEL: Record<string, string> = { youtube: 'YouTube', youtube_shorts: 'Shorts', instagram: 'Instagram', upload: 'Upload' };
 
-export function Library({ initial }: { initial: LibraryItem[] }) {
+export function Library({ initial, isAdmin, initialFilter = 'all' }: { initial: LibraryItem[]; isAdmin: boolean; initialFilter?: 'all' | 'fav' }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState(initial);
   const [q, setQ] = useState('');
+  const [show, setShow] = useState<'all' | 'fav'>(initialFilter);
   useEffect(() => setItems(initial), [initial]);
 
   // Polling só dos vídeos em processamento; quando algum termina, recarrega a página do servidor.
@@ -55,7 +58,11 @@ export function Library({ initial }: { initial: LibraryItem[] }) {
     return () => clearInterval(t);
   }, [activeIds, router]);
 
+  const setFavorite = (id: string, favorite: boolean) => setItems((prev) => prev.map((it) => (it.id === id ? { ...it, favorite } : it)));
+  const favCount = items.filter((i) => i.favorite).length;
+
   const filtered = items.filter((i) => {
+    if (show === 'fav' && !i.favorite) return false;
     if (!q) return true;
     const hay = `${i.title ?? ''} ${i.author ?? ''} ${i.techniques.join(' ')}`.toLowerCase();
     return hay.includes(q.toLowerCase());
@@ -65,19 +72,37 @@ export function Library({ initial }: { initial: LibraryItem[] }) {
     <>
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold">Biblioteca</h1>
-        <input className="input max-w-xs" placeholder="Buscar por título, autor ou técnica" value={q} onChange={(e) => setQ(e.target.value)} />
-        <button className="btn-primary ml-auto" onClick={() => setOpen(true)}>+ Importar vídeo</button>
+        {isAdmin && (
+          <button className="btn-primary ml-auto sm:order-last" onClick={() => setOpen(true)}>+ Importar<span className="hidden sm:inline">&nbsp;vídeo</span></button>
+        )}
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-1">
+          <div className="flex gap-1 rounded-md bg-mat-800 p-1 text-sm" role="tablist">
+            {(['all', 'fav'] as const).map((k) => (
+              <button key={k} role="tab" aria-selected={show === k} onClick={() => setShow(k)}
+                className={`rounded px-3 py-1 ${show === k ? 'bg-mat-600 text-zinc-100' : 'text-zinc-400'}`}>
+                {k === 'all' ? 'Todos' : `★ Favoritos${favCount ? ` (${favCount})` : ''}`}
+              </button>
+            ))}
+          </div>
+          <input type="search" className="input w-full sm:max-w-xs" placeholder="Buscar por título, autor ou técnica" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
       </div>
 
       {!items.length ? (
-        <div className="card p-10 text-center text-zinc-400">
-          <p className="mb-3">Nenhum vídeo ainda.</p>
-          <button className="btn-primary" onClick={() => setOpen(true)}>Importar o primeiro vídeo</button>
+        <div className="card p-6 text-center text-zinc-400 sm:p-10">
+          <p className={isAdmin ? 'mb-3' : ''}>Nenhum vídeo na biblioteca ainda.</p>
+          {isAdmin && <button className="btn-primary" onClick={() => setOpen(true)}>Importar o primeiro vídeo</button>}
+        </div>
+      ) : !filtered.length ? (
+        <div className="card p-6 text-center text-sm text-zinc-400 sm:p-10">
+          {show === 'fav' && !q ? 'Você ainda não favoritou nenhum vídeo. Toque na ☆ de um vídeo para guardá-lo aqui.' : 'Nada encontrado.'}
         </div>
       ) : (
         <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((v) => (
-            <li key={v.id} className="card overflow-hidden">
+            <li key={v.id} className="card relative overflow-hidden">
+              <FavoriteButton videoId={v.id} initial={v.favorite} onChange={(f) => setFavorite(v.id, f)}
+                className="absolute right-1.5 top-1.5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 backdrop-blur" />
               <Link href={`/videos/${v.id}`} className="block">
                 <div className="relative aspect-video bg-mat-800">
                   {v.thumbnail ? (
@@ -117,7 +142,7 @@ export function Library({ initial }: { initial: LibraryItem[] }) {
           ))}
         </ul>
       )}
-      <ImportModal open={open} onClose={() => setOpen(false)} />
+      {isAdmin && <ImportModal open={open} onClose={() => setOpen(false)} />}
     </>
   );
 }

@@ -3,37 +3,43 @@ import { notFound } from 'next/navigation';
 import { formatBytes, formatTimestamp } from '@bjj/core/format';
 import { isTerminal } from '@bjj/core/status';
 import { requireUser } from '@/lib/auth';
-import { HttpError } from '@/lib/api';
-import { activeJob, getNotes, getTechniques, getTranscript, getVideo, playbackUrls } from '@/lib/data';
+import { HttpError, isUuid } from '@/lib/api';
+import { activeJob, getNotes, getPlaylist, getTechniques, getTranscript, getVideo, isFavorite, playbackUrls, playlistsForVideo } from '@/lib/data';
 import { ImportStatus } from '@/components/ImportStatus';
 import { VideoWorkspace } from '@/components/VideoWorkspace';
 import { VideoActions } from '@/components/VideoActions';
+import { FavoriteButton } from '@/components/FavoriteButton';
+import { AddToPlaylist } from '@/components/AddToPlaylist';
+import { PlaylistNav } from '@/components/PlaylistNav';
 
 export const dynamic = 'force-dynamic';
 
 const PLATFORM_LABEL: Record<string, string> = { youtube: 'YouTube', youtube_shorts: 'YouTube Shorts', instagram: 'Instagram', upload: 'Upload próprio' };
 
-export default async function VideoPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ t?: string }> }) {
-  const userId = await requireUser();
+export default async function VideoPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ t?: string; pl?: string }> }) {
+  const user = await requireUser();
+  const admin = user.role === 'admin';
   const { id } = await params;
-  const { t } = await searchParams;
+  const { t, pl } = await searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
-  const video = await getVideo(userId, id).catch((e) => {
+  const video = await getVideo(user, id).catch((e) => {
     if (e instanceof HttpError && e.status === 404) notFound();
     throw e;
   });
-  const [transcript, techniques, notes, urls, job] = await Promise.all([
-    getTranscript(id), getTechniques(id), getNotes(id), playbackUrls(video), activeJob(id),
+  const [transcript, techniques, notes, urls, job, favorite, playlists] = await Promise.all([
+    getTranscript(id), getTechniques(id), getNotes(id, user.id), playbackUrls(video), admin ? activeJob(id) : null,
+    isFavorite(user.id, id), playlistsForVideo(user.id, id),
   ]);
+  const playing = pl && isUuid(pl) ? await getPlaylist(user, pl).catch(() => null) : null;
   const processing = !isTerminal(video.download_status);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1">
           <Link href="/" className="text-xs text-zinc-400 hover:text-zinc-200">← Biblioteca</Link>
-          <h1 className="mt-1 text-xl font-semibold">{video.title ?? 'Sem título'}</h1>
-          <p className="text-sm text-zinc-400">
+          <h1 className="mt-1 break-words text-lg font-semibold sm:text-xl">{video.title ?? 'Sem título'}</h1>
+          <p className="break-words text-sm text-zinc-400">
             {PLATFORM_LABEL[video.platform] ?? video.platform}
             {video.author && <> · {video.author}</>}
             {video.duration_seconds != null && <> · {formatTimestamp(video.duration_seconds)}</>}
@@ -44,14 +50,28 @@ export default async function VideoPage({ params, searchParams }: { params: Prom
             )}
           </p>
         </div>
-        <VideoActions
-          videoId={video.id}
-          status={video.download_status}
-          hasVideo={!!video.blob_pathname}
-          hasAudio={!!video.audio_pathname}
-          canRedownload={!!video.source_url}
-        />
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            <FavoriteButton videoId={video.id} initial={favorite} withLabel className="btn-ghost" />
+            {video.download_status === 'COMPLETED' && (
+              <AddToPlaylist videoId={video.id} initial={playlists} />
+            )}
+          </div>
+          {admin && (
+            <VideoActions
+              videoId={video.id}
+              status={video.download_status}
+              hasVideo={!!video.blob_pathname}
+              hasAudio={!!video.audio_pathname}
+              canRedownload={!!video.source_url}
+            />
+          )}
+        </div>
       </div>
+
+      {playing && (
+        <PlaylistNav pl={playing.playlist.id} name={playing.playlist.name} ids={playing.videos.map((v) => v.id)} current={video.id} />
+      )}
 
       {urls.video && job && (
         <div className="card p-4">
@@ -73,13 +93,15 @@ export default async function VideoPage({ params, searchParams }: { params: Prom
           notes={notes}
         />
       ) : (
-        <div className="card p-5">
+        <div className="card p-4 sm:p-5">
           {processing || video.download_status === 'FAILED' || video.download_status === 'CANCELLED' ? (
             <ImportStatus videoId={video.id} showOpenLink={false} />
           ) : (
             <div className="space-y-2 text-sm text-zinc-300">
               <p>O arquivo MP4 deste vídeo não está mais no storage.</p>
-              {video.source_url ? (
+              {!admin ? (
+                <p className="text-zinc-400">O administrador removeu o arquivo; ele pode ser reimportado depois.</p>
+              ) : video.source_url ? (
                 <p className="text-zinc-400">Use “Baixar novamente” para reimportá-lo da origem (requer worker ativo).</p>
               ) : (
                 <p className="text-zinc-400">Era um upload próprio — envie o arquivo novamente para reproduzir.</p>
@@ -91,7 +113,7 @@ export default async function VideoPage({ params, searchParams }: { params: Prom
       )}
 
       {!urls.video && transcript.segments.length > 0 && (
-        <div className="card max-h-96 overflow-y-auto p-4 text-sm">
+        <div className="card max-h-[60vh] overflow-y-auto p-3 text-sm sm:p-4">
           {transcript.segments.map((s) => (
             <p key={s.idx} className="py-0.5"><span className="mr-2 font-mono text-xs text-zinc-500">{formatTimestamp(s.start_seconds)}</span>{s.text}</p>
           ))}
