@@ -26,6 +26,12 @@ classificadas por técnica. O player toca o **arquivo armazenado** — não usa 
 2. Em **Storage**, conecte **Neon** (Marketplace) e crie um **Blob Store privado**, ambos ligados ao projeto.
 3. Variáveis do projeto (veja `apps/web/.env.example`): chaves do Clerk (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`), `SUPER_ADMIN_EMAIL`, `BLOB_ACCESS=private`.
 
+### Vitrine pública (`/explorar`)
+
+Sem login: busca (título, autor, descrição, transcrição e técnicas, sem acentos), filtros por **tipo de posição** (Guarda, Posição) e **ação** (Raspagem, Passagem, Finalização, Pegada de costas, Queda, Saída), por técnica e origem, taxonomia em `/explorar/tecnicas` e página de vídeo com player, técnicas com timestamp e transcrição. `/` sem login redireciona para `/explorar`. Só vídeos concluídos aparecem.
+
+> O player público serve o MP4 do seu Blob a qualquer visitante: isso republica vídeos de terceiros (risco de direitos autorais/termos das plataformas) e a transferência do Blob passa a ser consumida por anônimos. Cada página credita o autor e linka o post original.
+
 ### Usuários e papéis (Clerk)
 
 - **Super admin** — a conta Clerk cujo e-mail *verificado* é `SUPER_ADMIN_EMAIL`. Importa/envia/apaga vídeos, reprocessa, vê Storage, status do worker e a página **Usuários** (bloquear/desbloquear contas).

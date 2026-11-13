@@ -27,6 +27,8 @@ export function VideoWorkspace(props: {
   transcriptionStatus: string;
   techniques: TechniqueRow[];
   notes: Note[];
+  /** Visão pública (sem login): sem notas; URL renovada pela rota pública, sem o proxy autenticado. */
+  publicMode?: boolean;
 }) {
   const { videoId, segments, techniques } = props;
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -92,10 +94,12 @@ export function VideoWorkspace(props: {
     const v = videoRef.current;
     resumeAt.current = v?.currentTime || resumeAt.current;
     if (usingProxy) return setPlayerError('Não foi possível reproduzir o arquivo armazenado.');
-    // 1ª tentativa: renovar URL pré-assinada; 2ª: proxy autenticado com Range.
-    const r = await fetch(`/api/videos/${videoId}/playback`, { cache: 'no-store' }).catch(() => null);
+    // 1ª tentativa: renovar URL pré-assinada; 2ª: proxy autenticado com Range (só com login).
+    const base = props.publicMode ? '/api/public/videos' : '/api/videos';
+    const r = await fetch(`${base}/${videoId}/playback`, { cache: 'no-store' }).catch(() => null);
     const data = r?.ok ? await r.json() : null;
     if (data?.video && data.video !== src) setSrc(data.video);
+    else if (props.publicMode) setPlayerError('Não foi possível reproduzir o vídeo agora. Recarregue a página.');
     else {
       setUsingProxy(true);
       setSrc(`/api/videos/${videoId}/stream`);
@@ -268,6 +272,15 @@ export function VideoWorkspace(props: {
           </div>
         </section>
 
+        {props.publicMode ? (
+          <section className="card p-4 text-sm text-zinc-300">
+            <p className="mb-3">Entre para favoritar, montar playlists e anotar momentos deste vídeo.</p>
+            <div className="flex flex-wrap gap-2">
+              <a className="btn-primary" href={`/sign-in?redirect_url=${encodeURIComponent(`/videos/${videoId}`)}`}>Entrar</a>
+              <a className="btn-ghost" href={`/sign-up?redirect_url=${encodeURIComponent(`/videos/${videoId}`)}`}>Criar conta grátis</a>
+            </div>
+          </section>
+        ) : (
         <section className="card p-3">
           <h2 className="mb-2 text-sm font-semibold">Minhas notas <span className="font-normal text-zinc-500">· privadas</span></h2>
           <form onSubmit={addNote} className="mb-2 flex gap-2">
@@ -285,6 +298,7 @@ export function VideoWorkspace(props: {
             ))}
           </ul>
         </section>
+        )}
       </aside>
     </div>
   );

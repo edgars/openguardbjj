@@ -8,6 +8,7 @@ export function NavLinks({ admin }: { admin: boolean }) {
   const links = [
     { href: '/', label: 'Biblioteca', active: path === '/' || path.startsWith('/videos') },
     { href: '/playlists', label: 'Playlists', active: path.startsWith('/playlists') },
+    { href: '/explorar', label: 'Explorar', active: path.startsWith('/explorar') },
     ...(admin
       ? [
           { href: '/admin/storage', label: 'Storage', active: path.startsWith('/admin/storage') },
