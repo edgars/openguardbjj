@@ -272,15 +272,11 @@ async function postProcess(ctx: PipelineContext, audio: string | null, what: { t
     await setStage(job, 'ANALYZING', 0);
     await query(`update videos set analysis_status = 'PROCESSING' where id = $1`, [video.id]);
     segments ??= await loadSegments(video.id);
-    if (!segments.length) {
-      // Sem transcrição: analisa ao menos título e descrição (sem timestamp preciso).
-      const fresh = await queryOne<{ title: string | null; description: string | null }>('select title, description from videos where id = $1', [video.id]);
-      const text = [fresh?.title, fresh?.description].filter(Boolean).join('. ');
-      if (text) segments = [{ start: 0, end: 0, text }];
-    }
-    const hits = await analyzeTechniques(segments, signal);
+    // Título/descrição/hashtags sempre entram: o autor costuma nomear a posição ali.
+    const meta = await queryOne<{ title: string | null; description: string | null }>('select title, description from videos where id = $1', [video.id]);
+    const hits = await analyzeTechniques(segments, meta ?? {}, signal);
     await withTransaction(async (c) => {
-      await c.query(`delete from video_techniques where video_id = $1 and source in ('keyword','llm')`, [video.id]);
+      await c.query(`delete from video_techniques where video_id = $1 and source in ('keyword','llm','metadata')`, [video.id]);
       for (const h of hits) {
         await c.query(
           `insert into video_techniques (video_id, technique_id, start_seconds, end_seconds, confidence, mentions, source, evidence)

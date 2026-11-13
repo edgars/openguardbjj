@@ -56,8 +56,8 @@ try {
     const tr = await transcribe(audio, dir, () => {});
     step(`transcrição (${tr.language}, ${tr.model}): ${tr.segments.length} segmentos`);
     for (const s of tr.segments.slice(0, 5)) console.log(`   [${s.start.toFixed(1)}] ${s.text}`);
-    const hits = await analyzeTechniques(tr.segments);
-    step(`técnicas: ${hits.map((h) => `${h.slug}@${h.start.toFixed(0)}s`).join(', ') || 'nenhuma'}`);
+    const hits = await analyzeTechniques(tr.segments, { title: meta.title, description: meta.description });
+    step(`técnicas: ${hits.map((h) => `${h.slug}@${h.start == null ? "desc" : `${h.start.toFixed(0)}s`}`).join(', ') || 'nenhuma'}`);
   }
   step(`OK — arquivos em ${dir}`);
 } catch (err) {

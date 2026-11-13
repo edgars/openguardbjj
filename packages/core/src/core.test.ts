@@ -46,3 +46,14 @@ test('overallProgress mapeia etapa para faixa global', () => {
   assert.equal(overallProgress('DOWNLOADING', 50), 25);
   assert.equal(overallProgress('COMPLETED', 0), 100);
 });
+
+test('classifyByKeywords tolera erros comuns do Whisper em nomes de guarda', () => {
+  const hits = classifyByKeywords([
+    { start: 0, end: 6, text: 'Put your foot in they step up now place your reverse Della here' },
+    { start: 30, end: 36, text: 'The next step extend your spider over your headline' },
+  ]);
+  const slugs = hits.map((h) => h.slug);
+  assert.ok(slugs.includes('reverse-de-la-riva'));
+  assert.ok(slugs.includes('spider-guard'));
+  assert.ok(!slugs.includes('de-la-riva'), 'reverse vence o termo menor');
+});

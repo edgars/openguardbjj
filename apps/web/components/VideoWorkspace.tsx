@@ -224,7 +224,7 @@ export function VideoWorkspace(props: {
                         className="rounded-md border border-mat-600 px-2.5 py-1.5 text-left text-xs hover:border-belt sm:px-2 sm:py-1">
                         <span className="font-medium">{t.name_pt}</span>
                         {t.start_seconds != null && <span className="ml-1.5 font-mono text-belt">{formatTimestamp(t.start_seconds)}</span>}
-                        <span className="ml-1.5 text-zinc-500">{Math.round(t.confidence * 100)}%{t.source === 'llm' ? ' · IA' : ''}</span>
+                        <span className="ml-1.5 text-zinc-500">{Math.round(t.confidence * 100)}%{t.source === 'llm' ? ' · IA' : t.source === 'metadata' ? ' · descrição' : ''}</span>
                       </button>
                     ))}
                   </div>
