@@ -5,6 +5,7 @@ import { getPool } from '@bjj/core/db';
 import { VercelBlobStorageService } from '@bjj/core/storage';
 import { assertRuntimeEnv, config } from './config.ts';
 import { CancelledError, PermanentError, describe } from './errors.ts';
+import { enrichPending } from './instructors.ts';
 import { cancelJob, claimJob, completeJob, extendLease, failJob, heartbeat, releaseJob, removeHeartbeat, type JobRow } from './jobs.ts';
 import { loadVideo, runPipeline } from './pipeline.ts';
 
@@ -187,6 +188,7 @@ async function main() {
   process.on('SIGINT', () => void shutdown('SIGINT'));
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
 
+  let lastEnrich = 0;
   while (!stopping) {
     if (active.size >= config.concurrency) {
       await sleep(1000);
@@ -199,7 +201,14 @@ async function main() {
       log(`erro ao buscar jobs: ${(e as Error).message}`);
     }
     if (job && !stopping) void processJob(job);
-    else await sleep(config.pollIntervalMs);
+    else {
+      // Ocioso: completa perfis de professores pendentes (no máx. 1 rodada por minuto).
+      if (!active.size && Date.now() - lastEnrich > 60_000) {
+        lastEnrich = Date.now();
+        await enrichPending(3, log).catch((e) => log(`perfis de professores: ${(e as Error).message}`));
+      }
+      await sleep(config.pollIntervalMs);
+    }
   }
 }
 

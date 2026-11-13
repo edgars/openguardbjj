@@ -12,6 +12,9 @@ import { FavoriteButton } from '@/components/FavoriteButton';
 import { AddToPlaylist } from '@/components/AddToPlaylist';
 import { PlaylistNav } from '@/components/PlaylistNav';
 import { SourceLink } from '@/components/SourceLink';
+import { InstructorCard } from '@/components/InstructorCard';
+import { InstructorAdmin } from '@/components/InstructorAdmin';
+import { videoInstructors } from '@/lib/instructors';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +34,8 @@ export default async function VideoPage({ params, searchParams }: { params: Prom
     getTranscript(id), getTechniques(id), getNotes(id, user.id), playbackUrls(video), admin ? activeJob(id) : null,
     isFavorite(user.id, id), playlistsForVideo(user.id, id),
   ]);
+  const instructors = await videoInstructors(id, admin);
+  const confirmed = instructors.filter((i) => i.status === 'confirmed');
   const playing = pl && isUuid(pl) ? await getPlaylist(user, pl).catch(() => null) : null;
   const processing = !isTerminal(video.download_status);
 
@@ -116,6 +121,13 @@ export default async function VideoPage({ params, searchParams }: { params: Prom
           {transcript.segments.map((s) => (
             <p key={s.idx} className="py-0.5"><span className="mr-2 font-mono text-xs text-zinc-500">{formatTimestamp(s.start_seconds)}</span>{s.text}</p>
           ))}
+        </div>
+      )}
+
+      {(confirmed.length > 0 || admin) && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {confirmed.map((p) => <InstructorCard key={p.id} p={p} />)}
+          {admin && <InstructorAdmin videoId={video.id} rows={instructors} />}
         </div>
       )}
 

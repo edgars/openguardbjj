@@ -5,6 +5,7 @@ import type { Segment } from '@bjj/core/classifier';
 import type { Quality, VideoStage } from '@bjj/core/status';
 import { VercelBlobStorageService, type StoredAsset } from '@bjj/core/storage';
 import { analyzeTechniques } from './analyze.ts';
+import { identifyInstructors } from './instructors.ts';
 import { config } from './config.ts';
 import { PermanentError } from './errors.ts';
 import { extractAudio, makeThumbnail, normalizeToMp4, probe, type ProbeInfo } from './ffmpeg.ts';
@@ -287,6 +288,14 @@ async function postProcess(ctx: PipelineContext, audio: string | null, what: { t
     });
     await query(`update videos set analysis_status = 'COMPLETED' where id = $1`, [video.id]);
     ctx.log(`${hits.length} técnica(s) identificada(s)`);
+
+    // Professor: sugestão a partir do post (não bloqueia o vídeo se falhar).
+    try {
+      await identifyInstructors(video.id, segments, ctx.log, signal);
+    } catch (err) {
+      if (signal.aborted) throw err;
+      ctx.log(`identificação do professor falhou: ${(err as Error).message}`);
+    }
   }
 }
 

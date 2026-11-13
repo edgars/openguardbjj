@@ -1,6 +1,7 @@
 import { classifyByKeywords, type Segment, type TechniqueHit } from '@bjj/core/classifier';
 import { CATEGORY_LABEL_PT, TECHNIQUES } from '@bjj/core/techniques';
 import { config } from './config.ts';
+import { chatJson } from './llm.ts';
 
 export interface AnalysisHit extends Omit<TechniqueHit, 'start' | 'end'> {
   start: number | null;
@@ -72,12 +73,10 @@ async function llmClassify(segments: Segment[], metaText: string, signal?: Abort
   if (transcript.length > LLM_TRANSCRIPT_CHARS) transcript = `${transcript.slice(0, LLM_TRANSCRIPT_CHARS)}\n[...]`;
   const catalog = TECHNIQUES.map((t) => `${t.slug}|${t.nameEn}|${t.namePt}|${CATEGORY_LABEL_PT[t.category]}`).join('\n');
 
-  const payload: Record<string, unknown> = {
-    model: config.llm.model,
-    temperature: 0,
-    max_tokens: 2000,
-    response_format: { type: 'json_object' },
-    messages: [
+  const parsed = await chatJson<{
+    techniques?: Array<{ slug: string; start_seconds?: number | null; end_seconds?: number | null; confidence?: number; evidence?: string }>;
+  }>(
+    [
       {
         role: 'system',
         content:
@@ -96,36 +95,9 @@ async function llmClassify(segments: Segment[], metaText: string, signal?: Abort
         content: `Título/descrição do post:\n${metaText || '(vazio)'}\n\nTranscrição ([mm:ss|segundos] texto):\n${transcript || '(sem transcrição)'}`,
       },
     ],
-  };
-  // Modelos de raciocínio (gpt-oss) gastam menos tokens/tempo com esforço baixo; a tarefa é de classificação.
-  if (/gpt-oss/i.test(config.llm.model)) payload.reasoning_effort = 'low';
+    { signal },
+  );
 
-  const timeout = AbortSignal.timeout(config.llm.timeoutMs);
-  const call = () =>
-    fetch(`${config.llm.baseUrl}/chat/completions`, {
-      method: 'POST',
-      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
-      headers: {
-        'content-type': 'application/json',
-        ...(config.llm.apiKey ? { authorization: `Bearer ${config.llm.apiKey}` } : {}),
-      },
-      body: JSON.stringify(payload),
-    });
-
-  let resp = await call();
-  if (resp.status === 429) {
-    // Limite por minuto do plano grátis: espera o tempo pedido (até 30 s) e tenta uma vez.
-    const wait = Math.min(30, Number(resp.headers.get('retry-after')) || 10);
-    await resp.body?.cancel();
-    await new Promise((r) => setTimeout(r, wait * 1000));
-    resp = await call();
-  }
-  if (!resp.ok) throw new Error(`LLM HTTP ${resp.status}: ${(await resp.text()).slice(0, 200)}`);
-  const body = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  const content = body.choices?.[0]?.message?.content ?? '{}';
-  const parsed = JSON.parse(content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1) || '{}') as {
-    techniques?: Array<{ slug: string; start_seconds?: number | null; end_seconds?: number | null; confidence?: number; evidence?: string }>;
-  };
   const valid = new Set(TECHNIQUES.map((t) => t.slug));
   const seen = new Set<string>();
   const num = (v: unknown) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Math.max(0, Number(v)));

@@ -11,7 +11,8 @@
     "./storage": "./src/storage.ts",
     "./techniques": "./src/techniques.ts",
     "./classifier": "./src/classifier.ts",
-    "./format": "./src/format.ts"
+    "./format": "./src/format.ts",
+    "./names": "./src/names.ts"
   },
   "scripts": {
     "migrate": "tsx src/migrate.ts",

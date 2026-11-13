@@ -32,6 +32,16 @@ Sem login: busca (título, autor, descrição, transcrição e técnicas, sem ac
 
 > O player público serve o MP4 do seu Blob a qualquer visitante: isso republica vídeos de terceiros (risco de direitos autorais/termos das plataformas) e a transferência do Blob passa a ser consumida por anônimos. Cada página credita o autor e linka o post original.
 
+### Professores (identificação + perfil)
+
+Após a análise, o worker identifica **quem ensina** a partir do que o post diz (nome do perfil, título, descrição, início da fala) via LLM — sem reconhecimento facial. O nome devolvido precisa existir no texto (trava contra invenção). O perfil é montado em cascata:
+
+1. **BJJ Heroes** — acesso direto com User-Agent identificado. O site exige desafio anti-bot (Cloudflare); quando ele aparece, a fonte é pulada por 24 h, **sem contornar**. A UI sempre oferece "Buscar no BJJ Heroes" (aberto pelo navegador do visitante).
+2. **Wikipedia** (API oficial) — só aceita página cujo nome bate e que fala de jiu-jitsu/grappling.
+3. **IA** — sem fonte, só se o modelo declarar que conhece a pessoa; exibido como "gerado por IA, não verificado".
+
+Tudo entra como **sugestão**; só o que o admin confirmar (página do vídeo → "Professor do vídeo") aparece no público: cartão no vídeo, filtro "Professores" em `/explorar` e página `/explorar/professor/[slug]`. O admin também pode informar o professor à mão; o worker completa o perfil no laço ocioso.
+
 ### Usuários e papéis (Clerk)
 
 - **Super admin** — a conta Clerk cujo e-mail *verificado* é `SUPER_ADMIN_EMAIL`. Importa/envia/apaga vídeos, reprocessa, vê Storage, status do worker e a página **Usuários** (bloquear/desbloquear contas).

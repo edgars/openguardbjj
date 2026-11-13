@@ -20,6 +20,8 @@ export interface PublicFilters {
   category?: TechniqueCategory;
   technique?: string;
   platform?: string;
+  /** slug do professor (somente vínculos confirmados) */
+  instructor?: string;
 }
 
 export interface PublicVideoCard {
@@ -52,7 +54,9 @@ export async function searchPublic(f: PublicFilters, limit = 60): Promise<Public
     `with base as (
        select v.*,
               f_unaccent(lower(concat_ws(' ', v.title, v.author, v.description, tr.full_text,
-                (select string_agg(t.name_pt || ' ' || t.name_en, ' ') from video_techniques vt join techniques t on t.id = vt.technique_id where vt.video_id = v.id)
+                (select string_agg(t.name_pt || ' ' || t.name_en, ' ') from video_techniques vt join techniques t on t.id = vt.technique_id where vt.video_id = v.id),
+                (select string_agg(concat_ws(' ', i.name, i.nickname, i.team), ' ') from video_instructors vi join instructors i on i.id = vi.instructor_id
+                  where vi.video_id = v.id and vi.status = 'confirmed')
               ))) as hay
          from videos v left join transcripts tr on tr.video_id = v.id
         where v.download_status = 'COMPLETED'
@@ -66,9 +70,11 @@ export async function searchPublic(f: PublicFilters, limit = 60): Promise<Public
         and ($2::text is null or exists (select 1 from video_techniques vt join techniques t on t.id = vt.technique_id where vt.video_id = b.id and t.category = $2))
         and ($3::text is null or exists (select 1 from video_techniques vt join techniques t on t.id = vt.technique_id where vt.video_id = b.id and t.slug = $3))
         and ($4::text is null or b.platform = $4)
+        and ($6::text is null or exists (select 1 from video_instructors vi join instructors i on i.id = vi.instructor_id
+                                          where vi.video_id = b.id and vi.status = 'confirmed' and i.slug = $6))
       order by b.created_at desc
       limit $5`,
-    [terms(f.q), f.category ?? null, f.technique ?? null, f.platform ?? null, limit],
+    [terms(f.q), f.category ?? null, f.technique ?? null, f.platform ?? null, limit, f.instructor ?? null],
   );
   return Promise.all(
     rows.map(async (r) => ({

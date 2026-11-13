@@ -8,6 +8,8 @@ import { PLATFORM_LABEL, categoryLabel, getPublicVideo } from '@/lib/public';
 import { VideoWorkspace } from '@/components/VideoWorkspace';
 import { catColor } from '@/components/PublicVideoGrid';
 import { SourceLink } from '@/components/SourceLink';
+import { InstructorCard } from '@/components/InstructorCard';
+import { videoInstructors } from '@/lib/instructors';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +34,7 @@ export default async function PublicVideoPage({ params, searchParams }: Params) 
   if (!isUuid(id)) notFound();
   const video = await getPublicVideo(id);
   if (!video) notFound();
-  const [transcript, techniques, urls] = await Promise.all([getTranscript(id), getTechniques(id), playbackUrls(video)]);
+  const [transcript, techniques, urls, instructors] = await Promise.all([getTranscript(id), getTechniques(id), playbackUrls(video), videoInstructors(id)]);
   const categories = [...new Set(techniques.map((x) => x.category))];
 
   return (
@@ -44,6 +46,9 @@ export default async function PublicVideoPage({ params, searchParams }: Params) 
           {PLATFORM_LABEL[video.platform] ?? video.platform}
           {video.author && <> · {video.author}</>}
           {video.duration_seconds != null && <> · {formatTimestamp(video.duration_seconds)}</>}
+          {instructors.map((p) => (
+            <span key={p.id}> · Prof. <Link href={`/explorar/professor/${p.slug}`} className="text-zinc-200 hover:text-belt">{p.name}</Link></span>
+          ))}
         </p>
         <SourceLink platform={video.platform} url={video.source_url} author={video.author} className="mt-2" />
         {categories.length > 0 && (
@@ -73,6 +78,10 @@ export default async function PublicVideoPage({ params, searchParams }: Params) 
           O arquivo deste vídeo não está disponível no momento.
           {video.source_url && <> Veja no <a href={video.source_url} target="_blank" rel="noreferrer" className="text-belt underline">post original</a>.</>}
         </div>
+      )}
+
+      {instructors.length > 0 && (
+        <div className="grid gap-4 lg:grid-cols-2">{instructors.map((p) => <InstructorCard key={p.id} p={p} />)}</div>
       )}
 
       {video.description && (
