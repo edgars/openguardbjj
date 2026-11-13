@@ -34,8 +34,14 @@ export const config = {
   whisperLanguage: process.env.WHISPER_LANGUAGE || '', // vazio = detecção automática
   whisperComputeType: process.env.WHISPER_COMPUTE_TYPE || 'int8',
 
-  ollamaUrl: process.env.OLLAMA_URL || '',
-  ollamaModel: process.env.OLLAMA_MODEL || 'llama3.1:8b',
+  // LLM opcional para a análise de técnicas, em qualquer endpoint compatível com a API da OpenAI
+  // (Groq, OpenRouter, Gemini, Vercel AI Gateway, Ollama...). OLLAMA_URL segue aceito por compatibilidade.
+  llm: {
+    baseUrl: (process.env.LLM_BASE_URL || (process.env.OLLAMA_URL ? `${process.env.OLLAMA_URL.replace(/\/$/, '')}/v1` : '')).replace(/\/$/, ''),
+    apiKey: process.env.LLM_API_KEY || '',
+    model: process.env.LLM_MODEL || process.env.OLLAMA_MODEL || 'llama3.1:8b',
+    timeoutMs: num(process.env.LLM_TIMEOUT_SECONDS, 90) * 1000,
+  },
 };
 
 export function assertRuntimeEnv() {

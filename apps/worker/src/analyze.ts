@@ -21,14 +21,17 @@ export function metadataText(meta: VideoMeta): string {
   return [meta.title, meta.description]
     .filter(Boolean)
     .join('. ')
-    .replace(/#([\p{L}\p{N}_]+)/gu, (_, tag: string) => ` ${tag.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2')} `);
+    .replace(/#([\p{L}\p{N}_]+)/gu, (_, tag: string) => ` ${tag.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2')} `)
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**
  * Classificação sem API paga, em camadas:
  *  1. lexical sobre a transcrição (com timestamps);
  *  2. lexical sobre título/descrição/hashtags (o autor costuma nomear a posição ali; sem timestamp);
- *  3. opcional: LLM local via Ollama (OLLAMA_URL), que também deduz técnicas descritas sem o nome.
+ *  3. opcional: LLM (LLM_BASE_URL, API compatível com OpenAI — ex.: Groq free tier ou Ollama local),
+ *     que também deduz técnicas descritas pelo movimento, sem o nome.
  */
 export async function analyzeTechniques(segments: Segment[], meta: VideoMeta = {}, signal?: AbortSignal): Promise<AnalysisHit[]> {
   const hits: AnalysisHit[] = classifyByKeywords(segments).map((h) => ({ ...h, source: 'keyword' as const }));
@@ -46,60 +49,81 @@ export async function analyzeTechniques(segments: Segment[], meta: VideoMeta = {
     }
   }
 
-  if (config.ollamaUrl && (segments.length || metaText.trim())) {
+  if (config.llm.baseUrl && (segments.length || metaText.trim())) {
     try {
-      for (const h of await ollamaClassify(segments, metaText, signal)) {
+      for (const h of await llmClassify(segments, metaText, signal)) {
         const dup = hits.some((k) => k.slug === h.slug && (k.start == null || h.start == null || Math.abs(k.start - h.start) < 60));
         if (!dup) hits.push(h);
       }
     } catch (err) {
       if (signal?.aborted) throw err;
-      console.warn('[analyze] Ollama indisponível, mantendo apenas classificação lexical:', (err as Error).message);
+      console.warn('[analyze] LLM indisponível, mantendo apenas a classificação lexical:', (err as Error).message);
     }
   }
   return hits.sort((a, b) => (a.start ?? -1) - (b.start ?? -1));
 }
 
-async function ollamaClassify(segments: Segment[], metaText: string, signal?: AbortSignal): Promise<AnalysisHit[]> {
+/** Limite de transcrição enviada ao LLM (planos grátis têm teto de tokens por minuto). */
+const LLM_TRANSCRIPT_CHARS = 12_000;
+
+async function llmClassify(segments: Segment[], metaText: string, signal?: AbortSignal): Promise<AnalysisHit[]> {
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
   let transcript = segments.map((s) => `[${fmt(s.start)}|${s.start.toFixed(0)}] ${s.text}`).join('\n');
-  if (transcript.length > 24_000) transcript = transcript.slice(0, 24_000);
-  const catalog = TECHNIQUES.map((t) => `${t.slug} — ${t.nameEn} / ${t.namePt} [${CATEGORY_LABEL_PT[t.category]}]`).join('\n');
+  if (transcript.length > LLM_TRANSCRIPT_CHARS) transcript = `${transcript.slice(0, LLM_TRANSCRIPT_CHARS)}\n[...]`;
+  const catalog = TECHNIQUES.map((t) => `${t.slug}|${t.nameEn}|${t.namePt}|${CATEGORY_LABEL_PT[t.category]}`).join('\n');
 
-  const resp = await fetch(new URL('/api/chat', config.ollamaUrl), {
-    method: 'POST',
-    signal,
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: config.ollamaModel,
-      stream: false,
-      format: 'json',
-      think: false,
-      keep_alive: '10m',
-      options: { temperature: 0, num_ctx: 16384 },
-      messages: [
-        {
-          role: 'system',
-          content:
-            'Você é faixa-preta de Jiu-Jitsu e cataloga vídeos de técnica. A partir do título/descrição do post e da transcrição, ' +
-            'identifique as posições e técnicas ENSINADAS: guarda de partida, raspagens, passagens, finalizações, pegada das costas, quedas, escapes. ' +
-            'Instrutores raramente dizem o nome: deduza pelos movimentos descritos (ex.: "move behind him", "take his back" → back-take; ' +
-            '"load them on top and extend" a partir de guarda → raspagem/elevação correspondente). ' +
-            'Use SOMENTE slugs do catálogo; não invente. Use o timestamp (segundos) do trecho onde a técnica aparece; ' +
-            'se vier só do título/descrição, use start_seconds null. Confiança: 0.8+ quando nomeada ou inequívoca, 0.5–0.7 quando deduzida. ' +
-            'Responda apenas JSON: {"techniques":[{"slug":"...","start_seconds":0,"end_seconds":0,"confidence":0.0,"evidence":"trecho curto que justifica"}]}.\n' +
-            `Catálogo (slug — nome [categoria]):\n${catalog}`,
-        },
-        {
-          role: 'user',
-          content: `Título/descrição do post:\n${metaText || '(vazio)'}\n\nTranscrição ([mm:ss|segundos] texto):\n${transcript || '(sem transcrição)'}`,
-        },
-      ],
-    }),
-  });
-  if (!resp.ok) throw new Error(`Ollama HTTP ${resp.status}: ${(await resp.text()).slice(0, 200)}`);
-  const body = (await resp.json()) as { message?: { content?: string } };
-  const parsed = JSON.parse(body.message?.content ?? '{}') as {
+  const payload: Record<string, unknown> = {
+    model: config.llm.model,
+    temperature: 0,
+    max_tokens: 2000,
+    response_format: { type: 'json_object' },
+    messages: [
+      {
+        role: 'system',
+        content:
+          'Você é faixa-preta de Jiu-Jitsu e cataloga vídeos de técnica. A partir do título/descrição do post e da transcrição, ' +
+          'identifique as posições e técnicas ENSINADAS: guarda de partida, raspagens, passagens, finalizações, pegada das costas, quedas, escapes. ' +
+          'Instrutores raramente dizem o nome: deduza pelos movimentos descritos (ex.: "move behind him", "take his back" → back-take; ' +
+          '"load them on top and extend" a partir de uma guarda → a raspagem/elevação correspondente). ' +
+          'A transcrição automática erra nomes (ex.: "Della" = De La Riva, "spied" = spider). ' +
+          'Use SOMENTE slugs do catálogo; não invente. Use o timestamp (segundos) do trecho onde a técnica aparece; ' +
+          'se vier só do título/descrição, use start_seconds null. Confiança: 0.8+ quando nomeada ou inequívoca, 0.5–0.7 quando deduzida. ' +
+          'Responda apenas JSON: {"techniques":[{"slug":"...","start_seconds":0,"end_seconds":0,"confidence":0.0,"evidence":"trecho curto que justifica"}]}.\n' +
+          `Catálogo (slug|inglês|português|categoria):\n${catalog}`,
+      },
+      {
+        role: 'user',
+        content: `Título/descrição do post:\n${metaText || '(vazio)'}\n\nTranscrição ([mm:ss|segundos] texto):\n${transcript || '(sem transcrição)'}`,
+      },
+    ],
+  };
+  // Modelos de raciocínio (gpt-oss) gastam menos tokens/tempo com esforço baixo; a tarefa é de classificação.
+  if (/gpt-oss/i.test(config.llm.model)) payload.reasoning_effort = 'low';
+
+  const timeout = AbortSignal.timeout(config.llm.timeoutMs);
+  const call = () =>
+    fetch(`${config.llm.baseUrl}/chat/completions`, {
+      method: 'POST',
+      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+      headers: {
+        'content-type': 'application/json',
+        ...(config.llm.apiKey ? { authorization: `Bearer ${config.llm.apiKey}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+
+  let resp = await call();
+  if (resp.status === 429) {
+    // Limite por minuto do plano grátis: espera o tempo pedido (até 30 s) e tenta uma vez.
+    const wait = Math.min(30, Number(resp.headers.get('retry-after')) || 10);
+    await resp.body?.cancel();
+    await new Promise((r) => setTimeout(r, wait * 1000));
+    resp = await call();
+  }
+  if (!resp.ok) throw new Error(`LLM HTTP ${resp.status}: ${(await resp.text()).slice(0, 200)}`);
+  const body = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const content = body.choices?.[0]?.message?.content ?? '{}';
+  const parsed = JSON.parse(content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1) || '{}') as {
     techniques?: Array<{ slug: string; start_seconds?: number | null; end_seconds?: number | null; confidence?: number; evidence?: string }>;
   };
   const valid = new Set(TECHNIQUES.map((t) => t.slug));

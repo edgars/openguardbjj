@@ -79,7 +79,7 @@ Player: play/pause, ±5/10 s, velocidade 0,25×–2×, tela cheia, timeline com 
 ## IA sem custo
 
 - **Transcrição**: faster-whisper local (`WHISPER_MODEL=small` padrão; `medium` melhora PT).
-- **Técnicas**: classificador por taxonomia PT/EN (82 técnicas, aliases, agrupamento temporal, confiança). Opcional: LLM local via Ollama (`OLLAMA_URL`).
+- **Técnicas**: classificador por taxonomia PT/EN (82 técnicas, aliases, agrupamento temporal, confiança). Também lê título/descrição/hashtags do post (fonte `metadata`). Opcional: LLM em qualquer API compatível com OpenAI (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` — ex.: Groq grátis ou Ollama local), que deduz técnicas pelo movimento descrito (fonte `llm`, marcada "IA" na UI). Falha/limite do LLM não quebra a análise: fica a classificação lexical.
 
 ## Storage
 
