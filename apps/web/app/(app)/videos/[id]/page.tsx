@@ -4,7 +4,7 @@ import { formatBytes, formatTimestamp } from '@bjj/core/format';
 import { isTerminal } from '@bjj/core/status';
 import { requireUser } from '@/lib/auth';
 import { HttpError, isUuid } from '@/lib/api';
-import { activeJob, getNotes, getPlaylist, getTechniques, getTranscript, getVideo, isFavorite, playbackUrls, playlistsForVideo } from '@/lib/data';
+import { activeJob, techniqueCatalog, getNotes, getPlaylist, getTechniques, getTranscript, getVideo, isFavorite, playbackUrls, playlistsForVideo } from '@/lib/data';
 import { ImportStatus } from '@/components/ImportStatus';
 import { VideoWorkspace } from '@/components/VideoWorkspace';
 import { VideoActions } from '@/components/VideoActions';
@@ -34,7 +34,7 @@ export default async function VideoPage({ params, searchParams }: { params: Prom
     getTranscript(id), getTechniques(id), getNotes(id, user.id), playbackUrls(video), admin ? activeJob(id) : null,
     isFavorite(user.id, id), playlistsForVideo(user.id, id),
   ]);
-  const instructors = await videoInstructors(id, admin);
+  const [instructors, catalog] = await Promise.all([videoInstructors(id, admin), admin ? techniqueCatalog() : undefined]);
   const confirmed = instructors.filter((i) => i.status === 'confirmed');
   const playing = pl && isUuid(pl) ? await getPlaylist(user, pl).catch(() => null) : null;
   const processing = !isTerminal(video.download_status);
@@ -95,6 +95,7 @@ export default async function VideoPage({ params, searchParams }: { params: Prom
           transcriptionStatus={video.transcription_status}
           techniques={techniques}
           notes={notes}
+          catalog={catalog}
         />
       ) : (
         <div className="card p-4 sm:p-5">

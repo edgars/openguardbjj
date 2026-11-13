@@ -1,8 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { formatTimestamp } from '@bjj/core/format';
 import { CATEGORY_LABEL_PT, type TechniqueCategory } from '@bjj/core/techniques';
+import { useRouter } from 'next/navigation';
+import { TechniqueEditor, type CatalogItem } from './TechniqueEditor';
 
 interface Segment { start: number; end: number; text: string }
 interface TechniqueRow {
@@ -29,6 +31,8 @@ export function VideoWorkspace(props: {
   notes: Note[];
   /** Visão pública (sem login): sem notas; URL renovada pela rota pública, sem o proxy autenticado. */
   publicMode?: boolean;
+  /** Admin: catálogo para editar as técnicas do vídeo (ausente = somente leitura). */
+  catalog?: CatalogItem[];
 }) {
   const { videoId, segments, techniques } = props;
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -141,6 +145,36 @@ export function VideoWorkspace(props: {
     }
   }
 
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  // Fica ocupado até o refresh trazer as técnicas novas (evita clique sobre dados antigos).
+  const [refreshing, startRefresh] = useTransition();
+  const editBusy = saving || refreshing;
+  const [editError, setEditError] = useState<string | null>(null);
+  const present = useMemo(() => new Set(techniques.map((t) => t.slug)), [techniques]);
+
+  async function editTechniques(url: string, init: RequestInit) {
+    setSaving(true);
+    setEditError(null);
+    try {
+      const r = await fetch(url, { ...init, headers: { 'content-type': 'application/json' } });
+      if (!r.ok) return setEditError((await r.json().catch(() => ({}))).error ?? 'Falha ao salvar.');
+      startRefresh(() => router.refresh());
+    } catch {
+      setEditError('Sem conexão com o servidor.');
+    } finally {
+      setSaving(false);
+    }
+  }
+  const addTechnique = (slug: string, start: number | null) =>
+    editTechniques(`/api/videos/${videoId}/techniques`, { method: 'POST', body: JSON.stringify({ slug, start }) });
+  const removeTechnique = (t: TechniqueRow) => {
+    const auto = t.source !== 'manual';
+    if (auto && !confirm(`Remover “${t.name_pt}” deste vídeo? A reanálise automática não vai recolocá-la.`)) return;
+    return editTechniques(`/api/videos/${videoId}/techniques/${t.id}`, { method: 'DELETE' });
+  };
+
   const byCategory = useMemo(() => {
     const m = new Map<string, TechniqueRow[]>();
     for (const t of techniques) m.set(t.category, [...(m.get(t.category) ?? []), t]);
@@ -213,7 +247,14 @@ export function VideoWorkspace(props: {
         {playerError && <p className="text-sm text-red-400">{playerError}</p>}
 
         <section className="card p-4">
-          <h2 className="mb-3 text-sm font-semibold">Técnicas identificadas</h2>
+          <div className="mb-3 flex items-center gap-2">
+            <h2 className="text-sm font-semibold">Técnicas identificadas</h2>
+            {props.catalog && (
+              <button type="button" className="btn-ghost ml-auto px-2 py-1 text-xs" onClick={() => { setEditing((e) => !e); setEditError(null); }}>
+                {editing ? 'Concluir' : 'Editar'}
+              </button>
+            )}
+          </div>
           {!techniques.length ? (
             <p className="text-sm text-zinc-400">Nenhuma técnica identificada{props.transcriptionStatus !== 'COMPLETED' ? ' (sem transcrição)' : ''}.</p>
           ) : (
@@ -223,19 +264,32 @@ export function VideoWorkspace(props: {
                   <p className="mb-1 text-xs uppercase tracking-wide text-zinc-500">{CATEGORY_LABEL_PT[cat as TechniqueCategory] ?? cat}</p>
                   <div className="flex flex-wrap gap-2">
                     {list.map((t) => (
-                      <button key={t.id} onClick={() => t.start_seconds != null && seek(Math.max(0, t.start_seconds - 2))}
-                        title={t.evidence ?? undefined}
-                        className="rounded-md border border-mat-600 px-2.5 py-1.5 text-left text-xs hover:border-belt sm:px-2 sm:py-1">
-                        <span className="font-medium">{t.name_pt}</span>
-                        {t.start_seconds != null && <span className="ml-1.5 font-mono text-belt">{formatTimestamp(t.start_seconds)}</span>}
-                        <span className="ml-1.5 text-zinc-500">{Math.round(t.confidence * 100)}%{t.source === 'llm' ? ' · IA' : t.source === 'metadata' ? ' · descrição' : ''}</span>
-                      </button>
+                      <span key={t.id} className="inline-flex overflow-hidden rounded-md border border-mat-600 text-xs hover:border-belt">
+                        <button onClick={() => t.start_seconds != null && seek(Math.max(0, t.start_seconds - 2))}
+                          title={t.evidence ?? undefined}
+                          className="px-2.5 py-1.5 text-left sm:px-2 sm:py-1">
+                          <span className="font-medium">{t.name_pt}</span>
+                          {t.start_seconds != null && <span className="ml-1.5 font-mono text-belt">{formatTimestamp(t.start_seconds)}</span>}
+                          <span className="ml-1.5 text-zinc-500">
+                            {t.source === 'manual' ? 'manual' : `${Math.round(t.confidence * 100)}%${t.source === 'llm' ? ' · IA' : t.source === 'metadata' ? ' · descrição' : ''}`}
+                          </span>
+                        </button>
+                        {editing && (
+                          <button type="button" disabled={editBusy} onClick={() => removeTechnique(t)}
+                            aria-label={`Remover ${t.name_pt}`} title="Remover do vídeo"
+                            className="border-l border-mat-600 px-2 text-red-400 hover:bg-red-950/40 disabled:opacity-50">✕</button>
+                        )}
+                      </span>
                     ))}
                   </div>
                 </div>
               ))}
             </div>
           )}
+          {editing && props.catalog && (
+            <TechniqueEditor catalog={props.catalog} present={present} currentTime={time} busy={editBusy} onAdd={addTechnique} />
+          )}
+          {editError && <p className="mt-2 text-xs text-red-400">{editError}</p>}
         </section>
       </div>
 

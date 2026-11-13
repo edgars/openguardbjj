@@ -277,11 +277,15 @@ async function postProcess(ctx: PipelineContext, audio: string | null, what: { t
     const meta = await queryOne<{ title: string | null; description: string | null }>('select title, description from videos where id = $1', [video.id]);
     const hits = await analyzeTechniques(segments, meta ?? {}, signal);
     await withTransaction(async (c) => {
+      // Mesmo lock das rotas de edição do admin: remoção/rejeição e reanálise não se intercalam.
+      await c.query(`select pg_advisory_xact_lock(hashtext('video_techniques:' || $1::text))`, [video.id]);
       await c.query(`delete from video_techniques where video_id = $1 and source in ('keyword','llm','metadata')`, [video.id]);
       for (const h of hits) {
         await c.query(
           `insert into video_techniques (video_id, technique_id, start_seconds, end_seconds, confidence, mentions, source, evidence)
-           select $1, id, $3, $4, $5, $6, $7, $8 from techniques where slug = $2`,
+           select $1, t.id, $3, $4, $5, $6, $7, $8 from techniques t
+            where t.slug = $2
+              and not exists (select 1 from video_technique_rejections r where r.video_id = $1 and r.technique_id = t.id)`,
           [video.id, h.slug, h.start, h.end, h.confidence, h.mentions, h.source, h.evidence],
         );
       }

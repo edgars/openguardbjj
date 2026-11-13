@@ -259,6 +259,17 @@ export async function getTechniques(videoId: string) {
   );
 }
 
+export interface CatalogTechnique { slug: string; name_pt: string; name_en: string; category: string; videos: number }
+
+/** Catálogo de técnicas/posições para o editor do admin, com quantos vídeos já usam cada uma. */
+export async function techniqueCatalog() {
+  return query<CatalogTechnique>(
+    `select t.slug, t.name_pt, t.name_en, t.category, count(distinct vt.video_id)::int as videos
+       from techniques t left join video_techniques vt on vt.technique_id = t.id
+      group by t.id order by t.category, t.name_pt`,
+  );
+}
+
 /** Notas são privadas: cada usuário vê apenas as suas. */
 export async function getNotes(videoId: string, userId: string) {
   return query<{ id: string; timestamp_seconds: number | null; body: string; created_at: string }>(
