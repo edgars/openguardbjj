@@ -7,6 +7,7 @@ import { getTechniques, getTranscript, playbackUrls } from '@/lib/data';
 import { PLATFORM_LABEL, categoryLabel, getPublicVideo } from '@/lib/public';
 import { VideoWorkspace } from '@/components/VideoWorkspace';
 import { catColor } from '@/components/PublicVideoGrid';
+import { SourceLink } from '@/components/SourceLink';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,12 +44,10 @@ export default async function PublicVideoPage({ params, searchParams }: Params) 
           {PLATFORM_LABEL[video.platform] ?? video.platform}
           {video.author && <> · {video.author}</>}
           {video.duration_seconds != null && <> · {formatTimestamp(video.duration_seconds)}</>}
-          {video.source_url && (
-            <> · <a href={video.source_url} target="_blank" rel="noreferrer" className="underline decoration-mat-600 hover:text-zinc-200">post original</a></>
-          )}
         </p>
+        <SourceLink platform={video.platform} url={video.source_url} author={video.author} className="mt-2" />
         {categories.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="mt-3 flex flex-wrap gap-1.5">
             {categories.map((c) => (
               <Link key={c} href={`/explorar?cat=${c}`} className={`rounded-full border px-2.5 py-0.5 text-xs ${catColor(c)}`}>{categoryLabel(c)}</Link>
             ))}

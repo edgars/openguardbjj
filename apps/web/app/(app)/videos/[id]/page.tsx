@@ -11,6 +11,7 @@ import { VideoActions } from '@/components/VideoActions';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { AddToPlaylist } from '@/components/AddToPlaylist';
 import { PlaylistNav } from '@/components/PlaylistNav';
+import { SourceLink } from '@/components/SourceLink';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,13 +46,11 @@ export default async function VideoPage({ params, searchParams }: { params: Prom
             {video.duration_seconds != null && <> · {formatTimestamp(video.duration_seconds)}</>}
             {video.resolution && <> · {video.resolution}</>}
             {video.file_size_bytes != null && <> · {formatBytes(video.file_size_bytes)} no Blob</>}
-            {video.source_url && (
-              <> · <a href={video.source_url} target="_blank" rel="noreferrer" className="underline decoration-mat-600 hover:text-zinc-200">origem</a></>
-            )}
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
           <div className="flex flex-wrap gap-2 sm:justify-end">
+            <SourceLink platform={video.platform} url={video.source_url} author={video.author} />
             <FavoriteButton videoId={video.id} initial={favorite} withLabel className="btn-ghost" />
             {video.download_status === 'COMPLETED' && (
               <AddToPlaylist videoId={video.id} initial={playlists} />
