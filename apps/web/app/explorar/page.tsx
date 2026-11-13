@@ -6,7 +6,7 @@ import { publicInstructors } from '@/lib/instructors';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
-  title: 'Explorar técnicas de Jiu-Jitsu · OpenGuard BJJ',
+  title: 'Explorar técnicas de Jiu-Jitsu · itaimjj',
   description: 'Busque vídeos de Jiu-Jitsu por guarda, posição, raspagem, passagem, finalização e pegada de costas, com transcrição e timestamps.',
 };
 

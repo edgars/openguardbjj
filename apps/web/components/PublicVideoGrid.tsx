@@ -28,9 +28,9 @@ export function PublicVideoGrid({ videos }: { videos: PublicVideoCard[] }) {
                 <div className="flex h-full items-center justify-center text-xs text-zinc-500">sem miniatura</div>
               )}
               {v.duration != null && (
-                <span className="absolute bottom-1.5 right-1.5 rounded bg-black/80 px-1.5 py-0.5 font-mono text-xs">{formatTimestamp(v.duration)}</span>
+                <span className="absolute bottom-1.5 right-1.5 rounded bg-black/80 px-1.5 py-0.5 font-mono text-xs text-white">{formatTimestamp(v.duration)}</span>
               )}
-              <span className="absolute left-1.5 top-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[11px] text-zinc-200">{PLATFORM_LABEL[v.platform] ?? v.platform}</span>
+              <span className="absolute left-1.5 top-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[11px] text-white">{PLATFORM_LABEL[v.platform] ?? v.platform}</span>
             </div>
             <div className="space-y-2 p-3">
               <p className="line-clamp-2 text-sm font-medium">{v.title ?? 'Sem título'}</p>

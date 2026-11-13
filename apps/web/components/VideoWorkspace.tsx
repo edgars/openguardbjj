@@ -195,7 +195,7 @@ export function VideoWorkspace(props: {
           step={0.1}
           value={Math.min(time, duration || 0)}
           onChange={(e) => seek(Number(e.target.value), !videoRef.current?.paused)}
-          className="h-6 w-full accent-[#c8a24a]"
+          className="h-6 w-full accent-belt"
           aria-label="Linha do tempo"
         />
         {/* Marcadores de técnicas na linha do tempo */}

@@ -5,7 +5,7 @@ import { catColor } from '@/components/PublicVideoGrid';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
-  title: 'Taxonomia de técnicas · OpenGuard BJJ',
+  title: 'Taxonomia de técnicas · itaimjj',
   description: 'Guardas, posições, raspagens, passagens, finalizações, pegada de costas, quedas e saídas — com vídeos por técnica.',
 };
 

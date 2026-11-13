@@ -113,7 +113,7 @@ export function PlaylistEditor({ playlist, initial }: { playlist: { id: string; 
                     <img src={v.thumbnail} alt="" className="h-full w-full object-cover" loading="lazy" />
                   )}
                   {v.duration != null && (
-                    <span className="absolute bottom-0.5 right-0.5 rounded bg-black/80 px-1 font-mono text-[10px]">{formatTimestamp(v.duration)}</span>
+                    <span className="absolute bottom-0.5 right-0.5 rounded bg-black/80 px-1 font-mono text-[10px] text-white">{formatTimestamp(v.duration)}</span>
                   )}
                 </div>
                 <div className="min-w-0">

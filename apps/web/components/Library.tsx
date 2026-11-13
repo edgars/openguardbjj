@@ -102,7 +102,7 @@ export function Library({ initial, isAdmin, initialFilter = 'all' }: { initial: 
           {filtered.map((v) => (
             <li key={v.id} className="card relative overflow-hidden">
               <FavoriteButton videoId={v.id} initial={v.favorite} onChange={(f) => setFavorite(v.id, f)}
-                className="absolute right-1.5 top-1.5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 backdrop-blur" />
+                className="absolute right-1.5 top-1.5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-mat-950/70 backdrop-blur" />
               <Link href={`/videos/${v.id}`} className="block">
                 <div className="relative aspect-video bg-mat-800">
                   {v.thumbnail ? (
@@ -112,7 +112,7 @@ export function Library({ initial, isAdmin, initialFilter = 'all' }: { initial: 
                     <div className="flex h-full items-center justify-center text-xs text-zinc-500">sem miniatura</div>
                   )}
                   {v.duration != null && (
-                    <span className="absolute bottom-1.5 right-1.5 rounded bg-black/80 px-1.5 py-0.5 font-mono text-xs">{formatTimestamp(v.duration)}</span>
+                    <span className="absolute bottom-1.5 right-1.5 rounded bg-black/80 px-1.5 py-0.5 font-mono text-xs text-white">{formatTimestamp(v.duration)}</span>
                   )}
                   {!isTerminal(v.status) && (
                     <div className="absolute inset-x-0 bottom-0 h-1 bg-mat-700">

@@ -1,4 +1,6 @@
-# OpenGuard BJJ — Video Intelligence
+# itaimjj — Video Intelligence de Jiu-Jitsu
+
+Tema claro/escuro: botão no cabeçalho (sol/lua); sem escolha salva, segue o sistema. As cores vêm de variáveis CSS em `apps/web/app/globals.css` (o tema claro inverte as escalas do Tailwind).
 
 Biblioteca pessoal de vídeos de Jiu-Jitsu com **download real e persistência física** dos arquivos.
 URLs do YouTube, YouTube Shorts e Instagram Reels são baixadas (quando autorizado), normalizadas para
@@ -47,7 +49,7 @@ Tudo entra como **sugestão**; só o que o admin confirmar (página do vídeo �
 - **Super admin** — a conta Clerk cujo e-mail *verificado* é `SUPER_ADMIN_EMAIL`. Importa/envia/apaga vídeos, reprocessa, vê Storage, status do worker e a página **Usuários** (bloquear/desbloquear contas).
 - **User** — qualquer pessoa pode criar conta. Vê os vídeos *concluídos* da biblioteca e organiza **favoritos**, **playlists** (criar, renomear, reordenar, remover) e **notas** — tudo privado por usuário.
 - O papel é lido do Neon a cada requisição (bloqueio vale na hora). Se a conta Clerk for recriada (ou ao migrar da instância de desenvolvimento para a de produção do Clerk), a linha do usuário é reassociada pelo e-mail verificado.
-- Em `*.vercel.app` use as chaves de **Development** do Clerk; a instância de produção do Clerk exige domínio próprio. No painel do Clerk, mantenha apenas provedores que verificam e-mail (e-mail/senha, Google, GitHub).
+- Domínio: **https://www.itaimjj.com.br** (o apex `itaimjj.com.br` redireciona para o `www`). Com o domínio próprio já dá para criar a instância de **produção** do Clerk (chaves `pk_live_`/`sk_live_`); em `*.vercel.app` só funcionam as chaves de **Development**. No painel do Clerk, mantenha apenas provedores que verificam e-mail (e-mail/senha, Google, GitHub).
 4. Localmente: `vercel link` → `vercel env pull apps/web/.env.local`.
 5. Migrations: `DATABASE_URL=... npm run db:migrate` (idempotente; também sincroniza as 82 técnicas).
 

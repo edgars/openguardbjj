@@ -17,7 +17,7 @@ import { chatJson, llmEnabled } from './llm.ts';
  * Tudo entra como SUGESTÃO; só o que o admin confirmar aparece ao público.
  */
 
-const UA = 'OpenGuardBJJ/1.0 (+https://openguardbjj.vercel.app; catálogo de técnicas de jiu-jitsu)';
+const UA = 'itaimjj/1.0 (+https://www.itaimjj.com.br; catálogo de técnicas de jiu-jitsu)';
 const BJJ_RE = /jiu[\s-]?jitsu|grappl|\bbjj\b|submission|judo|luta livre|vale tudo/i;
 
 export interface InstructorCandidate {

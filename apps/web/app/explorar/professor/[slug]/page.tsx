@@ -12,7 +12,7 @@ type Params = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const p = await instructorBySlug((await params).slug);
-  return p ? { title: `${p.name} — técnicas de Jiu-Jitsu · OpenGuard BJJ`, description: p.summary ?? `Vídeos de técnica com ${p.name}.` } : {};
+  return p ? { title: `${p.name} — técnicas de Jiu-Jitsu · itaimjj`, description: p.summary ?? `Vídeos de técnica com ${p.name}.` } : {};
 }
 
 export default async function InstructorPage({ params }: Params) {

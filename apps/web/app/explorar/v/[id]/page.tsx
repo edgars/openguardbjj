@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const techs = await getTechniques(id);
   const names = [...new Set(techs.map((t) => t.name_pt))];
   return {
-    title: `${v.title ?? 'Vídeo'}${names.length ? ` — ${names.slice(0, 3).join(', ')}` : ''} · OpenGuard BJJ`,
+    title: `${v.title ?? 'Vídeo'}${names.length ? ` — ${names.slice(0, 3).join(', ')}` : ''} · itaimjj`,
     description: names.length ? `Técnicas: ${names.join(', ')}.` : (v.description ?? undefined)?.slice(0, 160),
   };
 }

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { auth } from '@clerk/nextjs/server';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth();
@@ -8,13 +9,14 @@ export default async function PublicLayout({ children }: { children: React.React
       <header className="sticky top-0 z-30 border-b border-mat-700 bg-mat-950/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <Link href="/explorar" className="font-semibold tracking-tight">
-            OpenGuard <span className="text-belt">BJJ</span>
+            itaim<span className="text-belt">jj</span>
           </Link>
           <nav className="order-last -mx-1 flex w-full gap-1 text-sm sm:order-none sm:w-auto">
             <Link href="/explorar" className="rounded px-2 py-1 text-zinc-300 hover:text-zinc-100">Explorar</Link>
             <Link href="/explorar/tecnicas" className="rounded px-2 py-1 text-zinc-300 hover:text-zinc-100">Técnicas</Link>
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
             {userId ? (
               <Link href="/" className="btn-primary">Minha biblioteca</Link>
             ) : (

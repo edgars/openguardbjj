@@ -2,8 +2,226 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Tema escuro (padrão). O tema efetivo fica em <html data-theme="dark|light">,
+   definido antes da pintura pelo script em app/layout.tsx. */
 :root {
   color-scheme: dark;
+  --mat-950: 11 13 16;
+  --mat-900: 18 21 26;
+  --mat-800: 26 31 38;
+  --mat-700: 38 44 53;
+  --mat-600: 56 64 75;
+  --belt: 200 162 74;
+  --belt-soft: 229 201 126;
+  --zinc-50: 250 250 250;
+  --zinc-100: 244 244 245;
+  --zinc-200: 228 228 231;
+  --zinc-300: 212 212 216;
+  --zinc-400: 161 161 170;
+  --zinc-500: 113 113 122;
+  --zinc-600: 82 82 91;
+  --zinc-700: 63 63 70;
+  --zinc-800: 39 39 42;
+  --zinc-900: 24 24 27;
+  --zinc-950: 9 9 11;
+  --red-50: 254 242 242;
+  --red-100: 254 226 226;
+  --red-200: 254 202 202;
+  --red-300: 252 165 165;
+  --red-400: 248 113 113;
+  --red-500: 239 68 68;
+  --red-600: 220 38 38;
+  --red-700: 185 28 28;
+  --red-800: 153 27 27;
+  --red-900: 127 29 29;
+  --red-950: 69 10 10;
+  --amber-50: 255 251 235;
+  --amber-100: 254 243 199;
+  --amber-200: 253 230 138;
+  --amber-300: 252 211 77;
+  --amber-400: 251 191 36;
+  --amber-500: 245 158 11;
+  --amber-600: 217 119 6;
+  --amber-700: 180 83 9;
+  --amber-800: 146 64 14;
+  --amber-900: 120 53 15;
+  --amber-950: 69 26 3;
+  --emerald-50: 236 253 245;
+  --emerald-100: 209 250 229;
+  --emerald-200: 167 243 208;
+  --emerald-300: 110 231 183;
+  --emerald-400: 52 211 153;
+  --emerald-500: 16 185 129;
+  --emerald-600: 5 150 105;
+  --emerald-700: 4 120 87;
+  --emerald-800: 6 95 70;
+  --emerald-900: 6 78 59;
+  --emerald-950: 2 44 34;
+  --sky-50: 240 249 255;
+  --sky-100: 224 242 254;
+  --sky-200: 186 230 253;
+  --sky-300: 125 211 252;
+  --sky-400: 56 189 248;
+  --sky-500: 14 165 233;
+  --sky-600: 2 132 199;
+  --sky-700: 3 105 161;
+  --sky-800: 7 89 133;
+  --sky-900: 12 74 110;
+  --sky-950: 8 47 73;
+  --teal-50: 240 253 250;
+  --teal-100: 204 251 241;
+  --teal-200: 153 246 228;
+  --teal-300: 94 234 212;
+  --teal-400: 45 212 191;
+  --teal-500: 20 184 166;
+  --teal-600: 13 148 136;
+  --teal-700: 15 118 110;
+  --teal-800: 17 94 89;
+  --teal-900: 19 78 74;
+  --teal-950: 4 47 46;
+  --orange-50: 255 247 237;
+  --orange-100: 255 237 213;
+  --orange-200: 254 215 170;
+  --orange-300: 253 186 116;
+  --orange-400: 251 146 60;
+  --orange-500: 249 115 22;
+  --orange-600: 234 88 12;
+  --orange-700: 194 65 12;
+  --orange-800: 154 52 18;
+  --orange-900: 124 45 18;
+  --orange-950: 67 20 7;
+  --indigo-50: 238 242 255;
+  --indigo-100: 224 231 255;
+  --indigo-200: 199 210 254;
+  --indigo-300: 165 180 252;
+  --indigo-400: 129 140 248;
+  --indigo-500: 99 102 241;
+  --indigo-600: 79 70 229;
+  --indigo-700: 67 56 202;
+  --indigo-800: 55 48 163;
+  --indigo-900: 49 46 129;
+  --indigo-950: 30 27 75;
+  --fuchsia-50: 253 244 255;
+  --fuchsia-100: 250 232 255;
+  --fuchsia-200: 245 208 254;
+  --fuchsia-300: 240 171 252;
+  --fuchsia-400: 232 121 249;
+  --fuchsia-500: 217 70 239;
+  --fuchsia-600: 192 38 211;
+  --fuchsia-700: 162 28 175;
+  --fuchsia-800: 134 25 143;
+  --fuchsia-900: 112 26 117;
+  --fuchsia-950: 74 4 78;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --mat-950: 245 245 243;
+  --mat-900: 255 255 255;
+  --mat-800: 236 238 241;
+  --mat-700: 223 226 231;
+  --mat-600: 201 206 214;
+  --belt: 138 100 22;
+  --belt-soft: 160 118 30;
+  --zinc-50: 9 9 11;
+  --zinc-100: 24 24 27;
+  --zinc-200: 39 39 42;
+  --zinc-300: 63 63 70;
+  --zinc-400: 82 82 91;
+  --zinc-500: 113 113 122;
+  --zinc-600: 161 161 170;
+  --zinc-700: 212 212 216;
+  --zinc-800: 228 228 231;
+  --zinc-900: 244 244 245;
+  --zinc-950: 250 250 250;
+  --red-50: 69 10 10;
+  --red-100: 127 29 29;
+  --red-200: 153 27 27;
+  --red-300: 185 28 28;
+  --red-400: 220 38 38;
+  --red-500: 239 68 68;
+  --red-600: 248 113 113;
+  --red-700: 252 165 165;
+  --red-800: 254 202 202;
+  --red-900: 254 226 226;
+  --red-950: 254 242 242;
+  --amber-50: 69 26 3;
+  --amber-100: 120 53 15;
+  --amber-200: 146 64 14;
+  --amber-300: 180 83 9;
+  --amber-400: 217 119 6;
+  --amber-500: 245 158 11;
+  --amber-600: 251 191 36;
+  --amber-700: 252 211 77;
+  --amber-800: 253 230 138;
+  --amber-900: 254 243 199;
+  --amber-950: 255 251 235;
+  --emerald-50: 2 44 34;
+  --emerald-100: 6 78 59;
+  --emerald-200: 6 95 70;
+  --emerald-300: 4 120 87;
+  --emerald-400: 5 150 105;
+  --emerald-500: 16 185 129;
+  --emerald-600: 52 211 153;
+  --emerald-700: 110 231 183;
+  --emerald-800: 167 243 208;
+  --emerald-900: 209 250 229;
+  --emerald-950: 236 253 245;
+  --sky-50: 8 47 73;
+  --sky-100: 12 74 110;
+  --sky-200: 7 89 133;
+  --sky-300: 3 105 161;
+  --sky-400: 2 132 199;
+  --sky-500: 14 165 233;
+  --sky-600: 56 189 248;
+  --sky-700: 125 211 252;
+  --sky-800: 186 230 253;
+  --sky-900: 224 242 254;
+  --sky-950: 240 249 255;
+  --teal-50: 4 47 46;
+  --teal-100: 19 78 74;
+  --teal-200: 17 94 89;
+  --teal-300: 15 118 110;
+  --teal-400: 13 148 136;
+  --teal-500: 20 184 166;
+  --teal-600: 45 212 191;
+  --teal-700: 94 234 212;
+  --teal-800: 153 246 228;
+  --teal-900: 204 251 241;
+  --teal-950: 240 253 250;
+  --orange-50: 67 20 7;
+  --orange-100: 124 45 18;
+  --orange-200: 154 52 18;
+  --orange-300: 194 65 12;
+  --orange-400: 234 88 12;
+  --orange-500: 249 115 22;
+  --orange-600: 251 146 60;
+  --orange-700: 253 186 116;
+  --orange-800: 254 215 170;
+  --orange-900: 255 237 213;
+  --orange-950: 255 247 237;
+  --indigo-50: 30 27 75;
+  --indigo-100: 49 46 129;
+  --indigo-200: 55 48 163;
+  --indigo-300: 67 56 202;
+  --indigo-400: 79 70 229;
+  --indigo-500: 99 102 241;
+  --indigo-600: 129 140 248;
+  --indigo-700: 165 180 252;
+  --indigo-800: 199 210 254;
+  --indigo-900: 224 231 255;
+  --indigo-950: 238 242 255;
+  --fuchsia-50: 74 4 78;
+  --fuchsia-100: 112 26 117;
+  --fuchsia-200: 134 25 143;
+  --fuchsia-300: 162 28 175;
+  --fuchsia-400: 192 38 211;
+  --fuchsia-500: 217 70 239;
+  --fuchsia-600: 232 121 249;
+  --fuchsia-700: 240 171 252;
+  --fuchsia-800: 245 208 254;
+  --fuchsia-900: 250 232 255;
+  --fuchsia-950: 253 244 255;
 }
 
 html {
@@ -21,7 +239,7 @@ body {
       disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply btn bg-belt text-mat-950 hover:bg-belt-soft;
+    @apply btn bg-belt text-ink hover:bg-belt-soft;
   }
   .btn-ghost {
     @apply btn border border-mat-600 text-zinc-200 hover:bg-mat-800;
@@ -40,3 +258,8 @@ body {
     @apply mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-400;
   }
 }
+
+/* Ícone do ThemeToggle: mostra o sol no escuro (ir para o claro) e a lua no claro. */
+.theme-icon-moon { display: none; }
+:root[data-theme='light'] .theme-icon-sun { display: none; }
+:root[data-theme='light'] .theme-icon-moon { display: block; }

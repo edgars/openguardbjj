@@ -35,7 +35,7 @@ export default async function PlaylistsPage() {
                   ) : (
                     <div className="flex h-full items-center justify-center text-3xl text-zinc-600">≡</div>
                   )}
-                  <span className="absolute bottom-1.5 right-1.5 rounded bg-black/80 px-1.5 py-0.5 text-xs">
+                  <span className="absolute bottom-1.5 right-1.5 rounded bg-black/80 px-1.5 py-0.5 text-xs text-white">
                     {p.video_count} {p.video_count === 1 ? 'vídeo' : 'vídeos'}
                   </span>
                 </div>
